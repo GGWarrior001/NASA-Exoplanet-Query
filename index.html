@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NASA Exoplanet Archive Query</title>
+
+  <!-- React & Babel (no build step required) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #020b18;
+      font-family: 'Share Tech Mono', monospace;
+      color: #c8e6f0;
+    }
+
+    @keyframes twinkle  { from { opacity: 0.15; } to { opacity: 0.85; } }
+    @keyframes scanline { 0% { top: -10%; } 100% { top: 110%; } }
+    @keyframes fadeUp   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse    { 0%,100% { box-shadow: 0 0 8px #00e5ff44; } 50% { box-shadow: 0 0 22px #00e5ffaa; } }
+    @keyframes spin     { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    ::-webkit-scrollbar       { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #030e1c; }
+    ::-webkit-scrollbar-thumb { background: #00e5ff44; border-radius: 3px; }
+
+    select option { background: #050f1e; }
+
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+
+    const NASA_TAP_URL =
+      "https://exoplanetarchive.ipac.caltech.edu/TAP/sync" +
+      "?query=SELECT+pl_name,hostname,disc_year,discoverymethod,disc_facility+FROM+pscomppars" +
+      "&format=json";
+
+    const COLS = [
+      { key: "pl_name",         label: "Planet Name"     },
+      { key: "hostname",        label: "Host Star"        },
+      { key: "disc_year",       label: "Discovery Year"   },
+      { key: "discoverymethod", label: "Method"           },
+      { key: "disc_facility",   label: "Facility"         },
+    ];
+
+    const FILTERS = [
+      { key: "disc_year",       label: "Discovery Year"      },
+      { key: "discoverymethod", label: "Discovery Method"     },
+      { key: "hostname",        label: "Host Star Name"       },
+      { key: "disc_facility",   label: "Discovery Facility"   },
+    ];
+
+    /* ── Star field ── */
+    function StarField() {
+      const stars = useMemo(() =>
+        Array.from({ length: 120 }, (_, i) => ({
+          id:      i,
+          x:       Math.random() * 100,
+          y:       Math.random() * 100,
+          r:       Math.random() * 1.5 + 0.3,
+          opacity: Math.random() * 0.6 + 0.2,
+          delay:   Math.random() * 4,
+        })), []);
+
+      return (
+        <svg style={{ position:"fixed", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:0 }}>
+          {stars.map(s => (
+            <circle
+              key={s.id}
+              cx={`${s.x}%`} cy={`${s.y}%`} r={s.r}
+              fill="white" opacity={s.opacity}
+              style={{
+                animation: `twinkle ${2 + s.delay}s ease-in-out infinite alternate`,
+                animationDelay: `${s.delay}s`,
+              }}
+            />
+          ))}
+        </svg>
+      );
+    }
+
+    /* ── Sort icon ── */
+    function SortIcon({ dir }) {
+      if (!dir) return (
+        <span style={{ display:"inline-flex", flexDirection:"column", gap:1, marginLeft:4, opacity:0.35, verticalAlign:"middle" }}>
+          <span style={{ fontSize:8, lineHeight:1 }}>▲</span>
+          <span style={{ fontSize:8, lineHeight:1 }}>▼</span>
+        </span>
+      );
+      return (
+        <span style={{ marginLeft:4, fontSize:10, color:"#00e5ff", verticalAlign:"middle" }}>
+          {dir === "asc" ? "▲" : "▼"}
+        </span>
+      );
+    }
+
+    /* ── Main app ── */
+    function App() {
+      const [allData,      setAllData]      = useState([]);
+      const [loading,      setLoading]      = useState(true);
+      const [loadError,    setLoadError]    = useState(null);
+      const [loadProgress, setLoadProgress] = useState("Initializing uplink…");
+      const [filters,      setFilters]      = useState({ disc_year:"", discoverymethod:"", hostname:"", disc_facility:"" });
+      const [results,      setResults]      = useState(null);
+      const [queryError,   setQueryError]   = useState("");
+      const [sort,         setSort]         = useState({ col:null, dir:null });
+
+      /* Fetch once on mount */
+      useEffect(() => {
+        let cancelled = false;
+        async function load() {
+          try {
+            setLoadProgress("Contacting NASA Exoplanet Archive…");
+            const res = await fetch(NASA_TAP_URL);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            setLoadProgress("Receiving telemetry data…");
+            const json = await res.json();
+            if (cancelled) return;
+
+            setLoadProgress("Indexing exoplanet catalogue…");
+
+            /* NASA TAP can return { columnNames, rows } or array-of-objects */
+            let rows;
+            if (Array.isArray(json) && json.length && typeof json[0] === "object" && !Array.isArray(json[0])) {
+              rows = json;
+            } else if (json.rows) {
+              const cols = json.columnNames || json.column_names || [];
+              rows = json.rows.map(r => {
+                const obj = {};
+                cols.forEach((c, i) => { obj[c] = r[i]; });
+                return obj;
+              });
+            } else {
+              rows = json;
+            }
+
+            setAllData(rows);
+            setLoading(false);
+          } catch (e) {
+            if (!cancelled) { setLoadError(e.message); setLoading(false); }
+          }
+        }
+        load();
+        return () => { cancelled = true; };
+      }, []);
+
+      /* Build dropdown options — single O(n) pass */
+      const options = useMemo(() => {
+        const sets = { disc_year: new Set(), discoverymethod: new Set(), hostname: new Set(), disc_facility: new Set() };
+        for (const row of allData) {
+          if (row.disc_year)       sets.disc_year.add(String(row.disc_year));
+          if (row.discoverymethod) sets.discoverymethod.add(row.discoverymethod);
+          if (row.hostname)        sets.hostname.add(row.hostname);
+          if (row.disc_facility)   sets.disc_facility.add(row.disc_facility);
+        }
+        return {
+          disc_year:       [...sets.disc_year].sort((a, b) => b - a),
+          discoverymethod: [...sets.discoverymethod].sort(),
+          hostname:        [...sets.hostname].sort(),
+          disc_facility:   [...sets.disc_facility].sort(),
+        };
+      }, [allData]);
+
+      const handleFilter = useCallback((k, v) => setFilters(f => ({ ...f, [k]: v })), []);
+
+      /* O(n) search */
+      const handleSearch = useCallback(() => {
+        const active = Object.entries(filters).filter(([, v]) => v);
+        if (!active.length) { setQueryError("Select at least one filter to search."); return; }
+        setQueryError("");
+        setResults(allData.filter(row => active.every(([k, v]) => String(row[k] ?? "") === v)));
+        setSort({ col: null, dir: null });
+      }, [filters, allData]);
+
+      const handleClear = useCallback(() => {
+        setFilters({ disc_year:"", discoverymethod:"", hostname:"", disc_facility:"" });
+        setResults(null);
+        setQueryError("");
+        setSort({ col: null, dir: null });
+      }, []);
+
+      /* Cycle: none → asc → desc → none */
+      const handleSort = useCallback(col => {
+        setSort(s => {
+          if (s.col !== col)   return { col, dir: "asc"  };
+          if (s.dir === "asc") return { col, dir: "desc" };
+          return { col: null, dir: null };
+        });
+      }, []);
+
+      const sortedResults = useMemo(() => {
+        if (!results) return null;
+        if (!sort.col) return results;
+        return [...results].sort((a, b) => {
+          const va = a[sort.col] ?? "", vb = b[sort.col] ?? "";
+          const cmp = (isNaN(va) || isNaN(vb))
+            ? String(va).localeCompare(String(vb))
+            : Number(va) - Number(vb);
+          return sort.dir === "asc" ? cmp : -cmp;
+        });
+      }, [results, sort]);
+
+      /* ── Shared button hover helpers ── */
+      const btnPrimaryHover   = e => { e.target.style.boxShadow = "0 0 30px #00e5ff55"; e.target.style.transform = "translateY(-1px)"; };
+      const btnPrimaryUnhover = e => { e.target.style.boxShadow = "0 0 20px #00e5ff22"; e.target.style.transform = ""; };
+      const btnSecondHover    = e => { e.target.style.borderColor = "#00e5ff66"; e.target.style.color = "#00e5ff"; };
+      const btnSecondUnhover  = e => { e.target.style.borderColor = "#00e5ff33"; e.target.style.color = "#4a9ab5"; };
+      const selectFocus       = e => { e.target.style.borderColor = "#00e5ff88"; };
+      const selectBlur        = e => { e.target.style.borderColor = "#00e5ff33"; };
+      const rowEnter          = e => { e.currentTarget.style.background = "rgba(0,229,255,0.04)"; };
+      const rowLeave          = e => { e.currentTarget.style.background = ""; };
+      const linkEnter         = e => { e.target.style.color = "#80f0ff"; e.target.style.borderColor = "#80f0ff"; };
+      const linkLeave         = e => { e.target.style.color = "#00e5ff"; e.target.style.borderColor = "#00e5ff55"; };
+
+      return (
+        <>
+          {/* Background */}
+          <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#010810 0%,#020b18 50%,#010d1a 100%)", position:"relative", overflow:"hidden" }}>
+            <StarField />
+
+            {/* Scanline */}
+            <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:1, overflow:"hidden" }}>
+              <div style={{ position:"absolute", left:0, right:0, height:"3px",
+                background:"linear-gradient(transparent,rgba(0,229,255,0.06),transparent)",
+                animation:"scanline 8s linear infinite" }} />
+            </div>
+
+            {/* Content */}
+            <div style={{ position:"relative", zIndex:2, maxWidth:1100, margin:"0 auto", padding:"0 20px 60px" }}>
+
+              {/* ── Header ── */}
+              <header style={{ textAlign:"center", padding:"48px 0 32px", animation:"fadeUp 0.8s ease" }}>
+                <div style={{ display:"inline-flex", alignItems:"center", gap:14, marginBottom:12 }}>
+                  <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                    <circle cx="18" cy="18" r="7" fill="#00e5ff" opacity="0.9"/>
+                    <ellipse cx="18" cy="18" rx="17" ry="6" stroke="#00e5ff" strokeWidth="1.2" fill="none" opacity="0.5"/>
+                    <circle cx="18" cy="18" r="17" stroke="#00e5ff22" strokeWidth="1"/>
+                    <circle cx="29" cy="11" r="2" fill="#00e5ff" opacity="0.7"/>
+                  </svg>
+                  <h1 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:"clamp(18px,4vw,32px)", fontWeight:900,
+                    letterSpacing:"0.12em", color:"#e0f7ff", textShadow:"0 0 30px #00e5ff88" }}>
+                    NASA EXOPLANET ARCHIVE
+                  </h1>
+                </div>
+                <p style={{ color:"#4a9ab5", fontSize:13, letterSpacing:"0.2em", textTransform:"uppercase" }}>
+                  Confirmed Exoplanet Query Interface · TAP Service
+                </p>
+              </header>
+
+              {/* ── Loading ── */}
+              {loading && (
+                <div style={{ textAlign:"center", padding:"60px 20px", animation:"fadeUp 0.5s ease" }}>
+                  <div style={{ width:48, height:48, border:"3px solid #00e5ff22", borderTop:"3px solid #00e5ff",
+                    borderRadius:"50%", margin:"0 auto 24px", animation:"spin 1s linear infinite" }} />
+                  <p style={{ color:"#00e5ff", fontSize:13, letterSpacing:"0.2em" }}>{loadProgress}</p>
+                </div>
+              )}
+
+              {/* ── Load error ── */}
+              {loadError && (
+                <div style={{ background:"#1a0a0a", border:"1px solid #ff4444", borderRadius:8,
+                  padding:"20px 24px", color:"#ff8888", fontSize:13, margin:"20px 0" }}>
+                  ⚠ Connection failed: {loadError}. Check network or try refreshing.
+                </div>
+              )}
+
+              {/* ── Main UI ── */}
+              {!loading && !loadError && (
+                <div style={{ animation:"fadeUp 0.6s ease 0.1s both" }}>
+
+                  {/* Query panel */}
+                  <section style={{ background:"linear-gradient(135deg,rgba(0,30,50,0.85),rgba(0,15,30,0.9))",
+                    border:"1px solid #00e5ff22", borderRadius:12, padding:"28px 28px 24px", marginBottom:24,
+                    backdropFilter:"blur(8px)", boxShadow:"0 4px 40px #00e5ff0a, inset 0 1px 0 #00e5ff18" }}>
+
+                    {/* Section header */}
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:22 }}>
+                      <div style={{ width:6, height:6, borderRadius:"50%", background:"#00e5ff",
+                        boxShadow:"0 0 8px #00e5ff", animation:"pulse 2s ease infinite" }} />
+                      <h2 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:11, letterSpacing:"0.25em",
+                        color:"#00e5ff", fontWeight:600, textTransform:"uppercase" }}>
+                        Query Parameters
+                      </h2>
+                      <div style={{ flex:1, height:"1px", background:"linear-gradient(90deg,#00e5ff33,transparent)" }} />
+                    </div>
+
+                    {/* Dropdowns */}
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:16, marginBottom:20 }}>
+                      {FILTERS.map(({ key, label }) => (
+                        <div key={key}>
+                          <label style={{ display:"block", fontSize:10, color:"#4a9ab5",
+                            letterSpacing:"0.18em", textTransform:"uppercase", marginBottom:7 }}>
+                            {label}
+                          </label>
+                          <select
+                            value={filters[key]}
+                            onChange={e => handleFilter(key, e.target.value)}
+                            onFocus={selectFocus}
+                            onBlur={selectBlur}
+                            style={{ width:"100%", background:"rgba(0,20,40,0.8)",
+                              border:"1px solid #00e5ff33", borderRadius:6, padding:"9px 12px",
+                              color: filters[key] ? "#e0f7ff" : "#3a6a7a",
+                              fontSize:13, fontFamily:"'Share Tech Mono',monospace",
+                              outline:"none", cursor:"pointer", appearance:"none",
+                              backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300e5ff44'/%3E%3C/svg%3E\")",
+                              backgroundRepeat:"no-repeat", backgroundPosition:"right 12px center",
+                              transition:"border-color 0.2s" }}
+                          >
+                            <option value="">— Any —</option>
+                            {options[key].map(v => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Validation error */}
+                    {queryError && (
+                      <p style={{ color:"#ff7b7b", fontSize:12, marginBottom:14, letterSpacing:"0.1em" }}>
+                        ⚠ {queryError}
+                      </p>
+                    )}
+
+                    {/* Action buttons */}
+                    <div style={{ display:"flex", gap:12 }}>
+                      <button
+                        onClick={handleSearch}
+                        onMouseEnter={btnPrimaryHover}
+                        onMouseLeave={btnPrimaryUnhover}
+                        style={{ flex:1, padding:"11px 20px",
+                          background:"linear-gradient(135deg,#00b4cc,#007a9a)",
+                          border:"1px solid #00e5ff66", borderRadius:7, color:"#fff",
+                          fontFamily:"'Orbitron',sans-serif", fontSize:11, fontWeight:600,
+                          letterSpacing:"0.2em", cursor:"pointer", textTransform:"uppercase",
+                          boxShadow:"0 0 20px #00e5ff22", transition:"all 0.2s" }}>
+                        ⬡ Execute Query
+                      </button>
+                      <button
+                        onClick={handleClear}
+                        onMouseEnter={btnSecondHover}
+                        onMouseLeave={btnSecondUnhover}
+                        style={{ padding:"11px 24px", background:"transparent",
+                          border:"1px solid #00e5ff33", borderRadius:7, color:"#4a9ab5",
+                          fontFamily:"'Orbitron',sans-serif", fontSize:11, fontWeight:600,
+                          letterSpacing:"0.2em", cursor:"pointer", textTransform:"uppercase",
+                          transition:"all 0.2s" }}>
+                        Clear
+                      </button>
+                    </div>
+                  </section>
+
+                  {/* ── Results ── */}
+                  {results !== null && (
+                    <section style={{ animation:"fadeUp 0.4s ease" }}>
+
+                      {/* Result count bar */}
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+                        <div style={{ width:6, height:6, borderRadius:"50%",
+                          background: results.length ? "#00ff9d" : "#ff7b7b",
+                          boxShadow: `0 0 8px ${results.length ? "#00ff9d" : "#ff7b7b"}` }} />
+                        <span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:10, letterSpacing:"0.22em",
+                          color: results.length ? "#00ff9d" : "#ff7b7b", textTransform:"uppercase" }}>
+                          {results.length.toLocaleString()} RECORD{results.length !== 1 ? "S" : ""} FOUND
+                        </span>
+                        <div style={{ flex:1, height:"1px",
+                          background:`linear-gradient(90deg,${results.length ? "#00ff9d33" : "#ff7b7b33"},transparent)` }} />
+                      </div>
+
+                      {results.length === 0 ? (
+                        <div style={{ textAlign:"center", padding:"40px 20px",
+                          background:"rgba(0,10,20,0.6)", border:"1px solid #00e5ff11",
+                          borderRadius:10, color:"#3a6a7a", fontSize:13, letterSpacing:"0.1em" }}>
+                          No exoplanets match the selected parameters.
+                        </div>
+                      ) : (
+                        <div style={{ background:"linear-gradient(135deg,rgba(0,20,35,0.9),rgba(0,10,20,0.95))",
+                          border:"1px solid #00e5ff1a", borderRadius:12, overflow:"hidden",
+                          boxShadow:"0 4px 40px #00000066" }}>
+                          <div style={{ overflowX:"auto" }}>
+                            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                              <thead>
+                                <tr style={{ background:"rgba(0,40,60,0.6)", borderBottom:"1px solid #00e5ff22" }}>
+                                  {COLS.map(col => (
+                                    <th
+                                      key={col.key}
+                                      onClick={() => handleSort(col.key)}
+                                      style={{ padding:"13px 16px", textAlign:"left",
+                                        fontFamily:"'Orbitron',sans-serif", fontSize:9, fontWeight:600,
+                                        letterSpacing:"0.2em",
+                                        color: sort.col === col.key ? "#00e5ff" : "#3a7a8a",
+                                        textTransform:"uppercase", cursor:"pointer",
+                                        whiteSpace:"nowrap", userSelect:"none", transition:"color 0.2s" }}>
+                                      {col.label}
+                                      <SortIcon dir={sort.col === col.key ? sort.dir : null} />
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sortedResults.map((row, i) => (
+                                  <tr key={i} style={{ borderBottom:"1px solid #00e5ff0a", transition:"background 0.15s" }}
+                                    onMouseEnter={rowEnter} onMouseLeave={rowLeave}>
+                                    <td style={{ padding:"10px 16px", color:"#a0d8ef", fontWeight:600 }}>
+                                      {row.pl_name ?? "—"}
+                                    </td>
+                                    <td style={{ padding:"10px 16px" }}>
+                                      {row.hostname
+                                        ? <a
+                                            href={`https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(row.pl_name)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onMouseEnter={linkEnter}
+                                            onMouseLeave={linkLeave}
+                                            style={{ color:"#00e5ff", textDecoration:"none",
+                                              borderBottom:"1px dotted #00e5ff55",
+                                              transition:"color 0.2s, border-color 0.2s" }}>
+                                            {row.hostname}
+                                          </a>
+                                        : "—"}
+                                    </td>
+                                    <td style={{ padding:"10px 16px", color:"#7ab8c8" }}>{row.disc_year ?? "—"}</td>
+                                    <td style={{ padding:"10px 16px", color:"#7ab8c8" }}>{row.discoverymethod ?? "—"}</td>
+                                    <td style={{ padding:"10px 16px", color:"#5a9aaa", fontSize:12 }}>{row.disc_facility ?? "—"}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          <div style={{ padding:"10px 16px", borderTop:"1px solid #00e5ff0a",
+                            color:"#2a5a6a", fontSize:11, letterSpacing:"0.1em" }}>
+                            Showing {sortedResults.length.toLocaleString()} of {allData.length.toLocaleString()} catalogued
+                            exoplanets · Click column headers to sort · Click host star to view NASA overview
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  )}
+
+                  {/* Idle state */}
+                  {results === null && (
+                    <div style={{ textAlign:"center", padding:"40px 20px", color:"#1e4a5a",
+                      fontSize:12, letterSpacing:"0.15em", fontFamily:"'Orbitron',sans-serif" }}>
+                      {allData.length.toLocaleString()} EXOPLANETS INDEXED · SELECT PARAMETERS ABOVE TO BEGIN QUERY
+                    </div>
+                  )}
+
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
