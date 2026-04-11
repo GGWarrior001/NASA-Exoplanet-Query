@@ -51,6 +51,28 @@
       "&QUERY=SELECT+pl_name,hostname,disc_year,discoverymethod,disc_facility+FROM+pscomppars" +
       "&FORMAT=json";
 
+    /* Browser fetch is blocked by CORS on the NASA TAP endpoint.
+       Try the URL directly first, then fall back to two public CORS proxies. */
+    const CORS_PROXIES = [
+      url => url,                                                      // direct (works if CORS headers present)
+      url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,  // corsproxy.io
+      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, // allorigins.win
+    ];
+
+    async function fetchWithCORSFallback(url) {
+      let lastErr = new Error("No CORS proxies configured");
+      for (const proxy of CORS_PROXIES) {
+        try {
+          const res = await fetch(proxy(url));
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr;
+    }
+
     const COLS = [
       { key: "pl_name",         label: "Planet Name"     },
       { key: "hostname",        label: "Host Star"        },
@@ -127,8 +149,7 @@
         async function load() {
           try {
             setLoadProgress("Contacting NASA Exoplanet Archive…");
-            const res = await fetch(NASA_TAP_URL);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const res = await fetchWithCORSFallback(NASA_TAP_URL);
 
             setLoadProgress("Receiving telemetry data…");
             const json = await res.json();
