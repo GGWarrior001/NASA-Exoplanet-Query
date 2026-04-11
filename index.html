@@ -29,6 +29,7 @@
     @keyframes fadeUp   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes pulse    { 0%,100% { box-shadow: 0 0 8px #00e5ff44; } 50% { box-shadow: 0 0 22px #00e5ffaa; } }
     @keyframes spin     { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes modalIn  { from { opacity:0; transform:scale(0.93) translateY(24px); } to { opacity:1; transform:scale(1) translateY(0); } }
 
     ::-webkit-scrollbar       { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #030e1c; }
@@ -48,7 +49,9 @@
     const NASA_TAP_URL =
       "https://exoplanetarchive.ipac.caltech.edu/TAP/sync" +
       "?REQUEST=doQuery&LANG=ADQL" +
-      "&QUERY=SELECT+pl_name,hostname,disc_year,discoverymethod,disc_facility+FROM+pscomppars" +
+      "&QUERY=SELECT+pl_name,hostname,disc_year,discoverymethod,disc_facility," +
+      "pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_orbsmax,sy_dist,pl_orbeccen" +
+      "+FROM+pscomppars" +
       "&FORMAT=json";
 
     /* Fallback sample data shown when all network attempts fail */
@@ -180,6 +183,219 @@
       );
     }
 
+    /* ── Info chip (label + value row) ── */
+    function InfoChip({ label, value }) {
+      return (
+        <div style={{ flex:1, minWidth:120 }}>
+          <div style={{ fontSize:9, color:"#4a9ab5", letterSpacing:"0.18em", textTransform:"uppercase",
+            marginBottom:4, fontFamily:"'Orbitron',sans-serif" }}>{label}</div>
+          <div style={{ color:"#a0d8ef", fontSize:13 }}>{value || "—"}</div>
+        </div>
+      );
+    }
+
+    /* ── Stat card ── */
+    function StatCard({ icon, label, value }) {
+      return (
+        <div style={{ background:"rgba(0,30,55,0.65)", border:"1px solid #00e5ff15",
+          borderRadius:10, padding:"13px 14px" }}>
+          <div style={{ fontSize:20, marginBottom:6, lineHeight:1 }}>{icon}</div>
+          <div style={{ fontSize:9, color:"#4a9ab5", letterSpacing:"0.15em",
+            textTransform:"uppercase", marginBottom:5,
+            fontFamily:"'Orbitron',sans-serif" }}>{label}</div>
+          <div style={{ color:"#e0f7ff", fontSize:14, fontWeight:600 }}>{value}</div>
+        </div>
+      );
+    }
+
+    /* ── Planet detail modal ── */
+    const METHOD_COLORS = {
+      "Transit":         "#00e5ff",
+      "Radial Velocity": "#00ff9d",
+      "Imaging":         "#ffaa00",
+      "Microlensing":    "#ff44cc",
+      "Astrometry":      "#aaff00",
+      "Timing Variations":"#ff8844",
+    };
+
+    function PlanetModal({ planet, onClose }) {
+      const [imgUrl,    setImgUrl]    = useState(null);
+      const [imgLoaded, setImgLoaded] = useState(false);
+
+      /* Fetch image from NASA Images & Video Library */
+      useEffect(() => {
+        let cancelled = false;
+        async function fetchImage() {
+          const queries = [planet.pl_name, planet.hostname, "exoplanet artist concept"];
+          for (const q of queries) {
+            try {
+              const res = await fetch(
+                `https://images-api.nasa.gov/search?q=${encodeURIComponent(q)}&media_type=image`
+              );
+              if (!res.ok) continue;
+              const data = await res.json();
+              const items = data?.collection?.items;
+              if (items?.length) {
+                const link = items[0]?.links?.find(l => l.rel === "preview");
+                if (link?.href && !cancelled) { setImgUrl(link.href); return; }
+              }
+            } catch (_) {}
+          }
+        }
+        fetchImage();
+        return () => { cancelled = true; };
+      }, [planet.pl_name, planet.hostname]);
+
+      /* Close on Escape */
+      useEffect(() => {
+        const handler = e => { if (e.key === "Escape") onClose(); };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+      }, [onClose]);
+
+      const fmt = (v, unit = "", dp = 2) =>
+        (v == null || v === "") ? "—"
+          : `${Number(v).toLocaleString(undefined, { maximumFractionDigits: dp })}${unit ? "\u2009" + unit : ""}`;
+
+      const methodColor = METHOD_COLORS[planet.discoverymethod] || "#00e5ff";
+
+      return (
+        <div
+          onClick={onClose}
+          style={{ position:"fixed", inset:0, zIndex:100,
+            background:"rgba(0,5,18,0.82)", backdropFilter:"blur(7px)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            padding:"20px", animation:"fadeUp 0.2s ease" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width:"100%", maxWidth:640,
+              background:"linear-gradient(145deg,rgba(0,20,45,0.98),rgba(0,10,28,0.99))",
+              border:"1px solid #00e5ff2a",
+              borderRadius:18,
+              boxShadow:"0 0 80px #00e5ff10, 0 24px 70px #00000099, inset 0 1px 0 #00e5ff18",
+              overflow:"hidden", maxHeight:"92vh", overflowY:"auto",
+              animation:"modalIn 0.32s cubic-bezier(0.34,1.4,0.64,1)" }}
+          >
+            {/* ── Hero image ── */}
+            <div style={{ position:"relative", height:230,
+              background:"linear-gradient(135deg,#010c1e,#021b30)", overflow:"hidden" }}>
+
+              {imgUrl ? (
+                <img src={imgUrl} alt={planet.pl_name}
+                  onLoad={() => setImgLoaded(true)}
+                  style={{ width:"100%", height:"100%", objectFit:"cover",
+                    opacity: imgLoaded ? 1 : 0, transition:"opacity 0.6s" }} />
+              ) : (
+                /* Artistic SVG placeholder */
+                <svg width="100%" height="100%" viewBox="0 0 640 230" fill="none">
+                  <defs>
+                    <radialGradient id="bg" cx="50%" cy="40%" r="70%">
+                      <stop offset="0%" stopColor="#0a3550"/>
+                      <stop offset="100%" stopColor="#010c1e"/>
+                    </radialGradient>
+                    <radialGradient id="planet" cx="42%" cy="38%" r="58%">
+                      <stop offset="0%" stopColor="#1a6a8a"/>
+                      <stop offset="60%" stopColor="#0d3a5a"/>
+                      <stop offset="100%" stopColor="#040e20"/>
+                    </radialGradient>
+                  </defs>
+                  <rect width="640" height="230" fill="url(#bg)"/>
+                  {[...Array(40)].map((_, i) => (
+                    <circle key={i}
+                      cx={((i * 73 + 17) % 620) + 10}
+                      cy={((i * 47 + 11) % 210) + 10}
+                      r={i % 3 === 0 ? 1.2 : 0.6}
+                      fill="white" opacity={(i % 5 + 1) * 0.12}/>
+                  ))}
+                  <circle cx="310" cy="115" r="82" fill="url(#planet)"/>
+                  <circle cx="310" cy="115" r="82" fill="none" stroke="#00e5ff" strokeWidth="0.8" opacity="0.25"/>
+                  <ellipse cx="310" cy="115" rx="148" ry="34" fill="none" stroke="#00e5ff" strokeWidth="2.5" opacity="0.35"/>
+                  <ellipse cx="310" cy="115" rx="180" ry="44" fill="none" stroke="#00e5ff" strokeWidth="1" opacity="0.15"/>
+                  <circle cx="390" cy="75" r="9" fill="#00e5ff" opacity="0.55"/>
+                  <circle cx="390" cy="75" r="16" fill="none" stroke="#00e5ff" strokeWidth="1" opacity="0.2"/>
+                </svg>
+              )}
+
+              {/* Gradient overlay */}
+              <div style={{ position:"absolute", inset:0,
+                background:"linear-gradient(to bottom,rgba(0,5,18,0.05) 0%,rgba(0,10,28,0.88) 100%)" }}/>
+
+              {/* Close button */}
+              <button onClick={onClose}
+                onMouseEnter={e => { e.currentTarget.style.background="rgba(0,229,255,0.2)"; e.currentTarget.style.borderColor="#00e5ff66"; }}
+                onMouseLeave={e => { e.currentTarget.style.background="rgba(0,15,35,0.8)"; e.currentTarget.style.borderColor="#00e5ff33"; }}
+                style={{ position:"absolute", top:14, right:14,
+                  width:34, height:34, borderRadius:"50%",
+                  background:"rgba(0,15,35,0.8)", border:"1px solid #00e5ff33",
+                  color:"#00e5ff", fontSize:15, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  transition:"all 0.2s", lineHeight:1 }}>
+                ✕
+              </button>
+
+              {/* Planet name + badge */}
+              <div style={{ position:"absolute", bottom:18, left:22, right:60 }}>
+                <div style={{ display:"inline-block", padding:"3px 11px",
+                  background:`${methodColor}1a`, border:`1px solid ${methodColor}55`,
+                  borderRadius:20, fontSize:9, color:methodColor,
+                  letterSpacing:"0.18em", textTransform:"uppercase",
+                  fontFamily:"'Orbitron',sans-serif", marginBottom:9 }}>
+                  {planet.discoverymethod || "Unknown Method"}
+                </div>
+                <h2 style={{ fontFamily:"'Orbitron',sans-serif",
+                  fontSize:"clamp(17px,3.5vw,26px)", fontWeight:900,
+                  color:"#e0f7ff", textShadow:"0 0 24px #00e5ff88",
+                  letterSpacing:"0.06em", lineHeight:1.2 }}>
+                  {planet.pl_name}
+                </h2>
+              </div>
+            </div>
+
+            {/* ── Body ── */}
+            <div style={{ padding:"22px 24px 28px" }}>
+
+              {/* Meta row */}
+              <div style={{ display:"flex", gap:20, marginBottom:22, flexWrap:"wrap",
+                paddingBottom:18, borderBottom:"1px solid #00e5ff0f" }}>
+                <InfoChip label="Host Star" value={planet.hostname}/>
+                <InfoChip label="Discovery Year" value={planet.disc_year}/>
+                <InfoChip label="Facility" value={planet.disc_facility}/>
+              </div>
+
+              {/* Stats grid */}
+              <div style={{ display:"grid",
+                gridTemplateColumns:"repeat(auto-fill,minmax(135px,1fr))",
+                gap:10, marginBottom:22 }}>
+                <StatCard icon="🔄" label="Orbital Period" value={fmt(planet.pl_orbper, "days")}/>
+                <StatCard icon="🌍" label="Radius" value={fmt(planet.pl_rade, "R⊕")}/>
+                <StatCard icon="⚖️" label="Mass" value={fmt(planet.pl_bmasse, "M⊕")}/>
+                <StatCard icon="🌡️" label="Eq. Temp." value={fmt(planet.pl_eqt, "K", 0)}/>
+                <StatCard icon="☀️" label="Semi-Major Axis" value={fmt(planet.pl_orbsmax, "AU")}/>
+                <StatCard icon="📡" label="Distance" value={fmt(planet.sy_dist, "pc")}/>
+                <StatCard icon="🥚" label="Eccentricity" value={fmt(planet.pl_orbeccen, "", 4)}/>
+              </div>
+
+              {/* CTA */}
+              <a
+                href={`https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(planet.pl_name)}`}
+                target="_blank" rel="noopener noreferrer"
+                onMouseEnter={e => { e.currentTarget.style.background="linear-gradient(135deg,#004a68,#002544)"; e.currentTarget.style.boxShadow="0 0 24px #00e5ff22"; }}
+                onMouseLeave={e => { e.currentTarget.style.background="linear-gradient(135deg,#003550,#001c30)"; e.currentTarget.style.boxShadow=""; }}
+                style={{ display:"block", textAlign:"center", padding:"13px 20px",
+                  background:"linear-gradient(135deg,#003550,#001c30)",
+                  border:"1px solid #00e5ff44", borderRadius:9,
+                  color:"#00e5ff", fontFamily:"'Orbitron',sans-serif",
+                  fontSize:10, letterSpacing:"0.22em", textDecoration:"none",
+                  textTransform:"uppercase", transition:"all 0.2s" }}>
+                View Full NASA Profile →
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     /* ── Main app ── */
     function App() {
       const [allData,      setAllData]      = useState([]);
@@ -190,6 +406,7 @@
       const [results,      setResults]      = useState(null);
       const [queryError,   setQueryError]   = useState("");
       const [sort,         setSort]         = useState({ col:null, dir:null });
+      const [selectedPlanet, setSelectedPlanet] = useState(null);
 
       /* Fetch once on mount */
       useEffect(() => {
@@ -490,8 +707,18 @@
                                 {sortedResults.map((row, i) => (
                                   <tr key={i} style={{ borderBottom:"1px solid #00e5ff0a", transition:"background 0.15s" }}
                                     onMouseEnter={rowEnter} onMouseLeave={rowLeave}>
-                                    <td style={{ padding:"10px 16px", color:"#a0d8ef", fontWeight:600 }}>
-                                      {row.pl_name ?? "—"}
+                                    <td style={{ padding:"10px 16px" }}>
+                                      <button
+                                        onClick={() => setSelectedPlanet(row)}
+                                        onMouseEnter={e => { e.currentTarget.style.color="#00e5ff"; e.currentTarget.style.borderColor="#00e5ff66"; }}
+                                        onMouseLeave={e => { e.currentTarget.style.color="#a0d8ef"; e.currentTarget.style.borderColor="#a0d8ef33"; }}
+                                        style={{ background:"none", border:"none", borderBottom:"1px dotted #a0d8ef33",
+                                          color:"#a0d8ef", fontWeight:600,
+                                          fontFamily:"'Share Tech Mono',monospace",
+                                          fontSize:13, cursor:"pointer", padding:0,
+                                          textAlign:"left", transition:"color 0.2s, border-color 0.2s" }}>
+                                        {row.pl_name ?? "—"}
+                                      </button>
                                     </td>
                                     <td style={{ padding:"10px 16px" }}>
                                       {row.hostname
@@ -519,7 +746,7 @@
                           <div style={{ padding:"10px 16px", borderTop:"1px solid #00e5ff0a",
                             color:"#2a5a6a", fontSize:11, letterSpacing:"0.1em" }}>
                             Showing {sortedResults.length.toLocaleString()} of {allData.length.toLocaleString()} catalogued
-                            exoplanets · Click column headers to sort · Click host star to view NASA overview
+                            exoplanets · Click planet name for details · Click host star to view NASA overview
                           </div>
                         </div>
                       )}
@@ -538,6 +765,10 @@
               )}
             </div>
           </div>
+          {/* Planet detail modal */}
+          {selectedPlanet && (
+            <PlanetModal planet={selectedPlanet} onClose={() => setSelectedPlanet(null)} />
+          )}
         </>
       );
     }
