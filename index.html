@@ -51,19 +51,67 @@
       "&QUERY=SELECT+pl_name,hostname,disc_year,discoverymethod,disc_facility+FROM+pscomppars" +
       "&FORMAT=json";
 
-    /* Browser fetch is blocked by CORS on the NASA TAP endpoint.
-       Try the URL directly first, then fall back to two public CORS proxies. */
-    const CORS_PROXIES = [
-      url => url,                                                      // direct (works if CORS headers present)
-      url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,  // corsproxy.io
-      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, // allorigins.win
+    /* Fallback sample data shown when all network attempts fail */
+    const SAMPLE_DATA = [
+      {pl_name:"51 Peg b",      hostname:"51 Peg",     disc_year:1995,discoverymethod:"Radial Velocity",    disc_facility:"Haute-Provence Obs"},
+      {pl_name:"HD 209458 b",   hostname:"HD 209458",  disc_year:2000,discoverymethod:"Transit",            disc_facility:"FLWO 1.5m"},
+      {pl_name:"Kepler-22b",    hostname:"Kepler-22",  disc_year:2011,discoverymethod:"Transit",            disc_facility:"Kepler"},
+      {pl_name:"GJ 1214 b",     hostname:"GJ 1214",    disc_year:2009,discoverymethod:"Transit",            disc_facility:"MEarth Project"},
+      {pl_name:"TRAPPIST-1b",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1c",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1d",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1e",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1f",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1g",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1h",   hostname:"TRAPPIST-1", disc_year:2017,discoverymethod:"Transit",            disc_facility:"Spitzer"},
+      {pl_name:"Proxima Cen b", hostname:"Proxima Cen",disc_year:2016,discoverymethod:"Radial Velocity",    disc_facility:"ESO 3.6m"},
+      {pl_name:"HD 40307 g",    hostname:"HD 40307",   disc_year:2012,discoverymethod:"Radial Velocity",    disc_facility:"HARPS"},
+      {pl_name:"Kepler-442b",   hostname:"Kepler-442", disc_year:2015,discoverymethod:"Transit",            disc_facility:"Kepler"},
+      {pl_name:"Kepler-452b",   hostname:"Kepler-452", disc_year:2015,discoverymethod:"Transit",            disc_facility:"Kepler"},
+      {pl_name:"55 Cnc e",      hostname:"55 Cnc",     disc_year:2004,discoverymethod:"Radial Velocity",    disc_facility:"ELODIE"},
+      {pl_name:"Kepler-186f",   hostname:"Kepler-186", disc_year:2014,discoverymethod:"Transit",            disc_facility:"Kepler"},
+      {pl_name:"LHS 1140 b",    hostname:"LHS 1140",   disc_year:2017,discoverymethod:"Transit",            disc_facility:"MEarth"},
+      {pl_name:"GJ 436 b",      hostname:"GJ 436",     disc_year:2004,discoverymethod:"Radial Velocity",    disc_facility:"ELODIE"},
+      {pl_name:"HR 8799 b",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",            disc_facility:"Keck"},
+      {pl_name:"HR 8799 c",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",            disc_facility:"Keck"},
+      {pl_name:"HR 8799 d",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",            disc_facility:"Keck"},
+      {pl_name:"HR 8799 e",     hostname:"HR 8799",    disc_year:2010,discoverymethod:"Imaging",            disc_facility:"Keck"},
+      {pl_name:"tau Boo b",     hostname:"tau Boo",    disc_year:1997,discoverymethod:"Radial Velocity",    disc_facility:"Lick"},
+      {pl_name:"ups And b",     hostname:"ups And",    disc_year:1996,discoverymethod:"Radial Velocity",    disc_facility:"Lick"},
+      {pl_name:"ups And c",     hostname:"ups And",    disc_year:1999,discoverymethod:"Radial Velocity",    disc_facility:"Lick"},
+      {pl_name:"ups And d",     hostname:"ups And",    disc_year:1999,discoverymethod:"Radial Velocity",    disc_facility:"Lick"},
+      {pl_name:"HD 189733 b",   hostname:"HD 189733",  disc_year:2005,discoverymethod:"Radial Velocity",    disc_facility:"OHP"},
+      {pl_name:"WASP-12 b",     hostname:"WASP-12",    disc_year:2008,discoverymethod:"Transit",            disc_facility:"SuperWASP"},
+      {pl_name:"TOI-700 d",     hostname:"TOI-700",    disc_year:2020,discoverymethod:"Transit",            disc_facility:"TESS"},
     ];
 
+    /* Try each proxy with a per-attempt timeout of 8 s */
+    const CORS_PROXIES = [
+      url => url,                                                                   // direct
+      url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,               // corsproxy.io
+      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,      // allorigins
+      url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, // codetabs
+      url => `https://thingproxy.freeboard.io/fetch/${url}`,                       // thingproxy
+    ];
+
+    async function fetchWithTimeout(url, ms = 8000) {
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), ms);
+      try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(id);
+        return res;
+      } catch (e) {
+        clearTimeout(id);
+        throw e;
+      }
+    }
+
     async function fetchWithCORSFallback(url) {
-      let lastErr = new Error("No CORS proxies configured");
+      let lastErr = new Error("All proxies unreachable");
       for (const proxy of CORS_PROXIES) {
         try {
-          const res = await fetch(proxy(url));
+          const res = await fetchWithTimeout(proxy(url));
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res;
         } catch (e) {
@@ -148,7 +196,7 @@
         let cancelled = false;
         async function load() {
           try {
-            setLoadProgress("Contacting NASA Exoplanet Archive…");
+            setLoadProgress("Contacting NASA Exoplanet Archive (trying 5 routes)…");
             const res = await fetchWithCORSFallback(NASA_TAP_URL);
 
             setLoadProgress("Receiving telemetry data…");
@@ -175,7 +223,12 @@
             setAllData(rows);
             setLoading(false);
           } catch (e) {
-            if (!cancelled) { setLoadError(e.message); setLoading(false); }
+            if (!cancelled) {
+              /* All proxies failed — load built-in sample catalogue so the app still works */
+              setAllData(SAMPLE_DATA);
+              setLoadProgress("⚠ Live data unavailable – showing sample catalogue (30 planets)");
+              setLoading(false);
+            }
           }
         }
         load();
