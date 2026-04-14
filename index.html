@@ -3,49 +3,112 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NASA Exoplanet Archive Query</title>
+  <title>🪐 NASA Exoplanet Explorer</title>
 
-  <!-- React & Babel (no build step required) -->
+  <!-- React & Babel -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Chart.js for data visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       background: #020b18;
-      font-family: 'Share Tech Mono', monospace;
+      font-family: 'Inter', 'Share Tech Mono', monospace;
       color: #c8e6f0;
     }
 
-    @keyframes twinkle  { from { opacity: 0.15; } to { opacity: 0.85; } }
-    @keyframes scanline { 0% { top: -10%; } 100% { top: 110%; } }
-    @keyframes fadeUp   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes pulse    { 0%,100% { box-shadow: 0 0 8px #00e5ff44; } 50% { box-shadow: 0 0 22px #00e5ffaa; } }
-    @keyframes spin     { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    @keyframes modalIn  { from { opacity:0; transform:scale(0.93) translateY(24px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    @keyframes twinkle    { from { opacity: 0.1; } to { opacity: 0.9; } }
+    @keyframes scanline   { 0% { top: -10%; } 100% { top: 110%; } }
+    @keyframes fadeUp     { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn     { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes pulse      { 0%,100% { box-shadow: 0 0 8px #00e5ff44; } 50% { box-shadow: 0 0 24px #00e5ffaa; } }
+    @keyframes spin       { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes modalIn    { from { opacity:0; transform:scale(0.92) translateY(28px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    @keyframes shimmer    { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    @keyframes float      { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+    @keyframes nebulaDrift{ 0%,100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.04) rotate(1.5deg); } }
+    @keyframes glow       { 0%,100% { opacity: 0.35; } 50% { opacity: 0.75; } }
+    @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
-    ::-webkit-scrollbar       { width: 6px; height: 6px; }
+    ::-webkit-scrollbar       { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: #030e1c; }
-    ::-webkit-scrollbar-thumb { background: #00e5ff44; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: #00e5ff33; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #00e5ff66; }
 
     select option { background: #050f1e; }
-
     #root { min-height: 100vh; }
+
+    .skeleton {
+      background: linear-gradient(90deg,
+        rgba(0,229,255,0.04) 25%,
+        rgba(0,229,255,0.11) 50%,
+        rgba(0,229,255,0.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+      border-radius: 6px;
+    }
+
+    .planet-card {
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease;
+      cursor: pointer;
+    }
+    .planet-card:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 16px 60px rgba(0,229,255,0.18), 0 0 0 1px rgba(0,229,255,0.28);
+    }
+
+    .fav-btn { transition: transform 0.2s, color 0.2s; }
+    .fav-btn:hover { transform: scale(1.3); }
+
+    .btn-primary  { transition: all 0.25s; }
+    .btn-primary:hover {
+      box-shadow: 0 0 30px #00e5ff44, 0 0 60px #00e5ff18;
+      transform: translateY(-2px);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-secondary { transition: all 0.22s; }
+    .btn-secondary:hover {
+      border-color: #00e5ff55 !important;
+      color: #00e5ff !important;
+      background: rgba(0,229,255,0.07) !important;
+    }
+
+    table tr { transition: background 0.12s; }
+    table tr:hover td { background: rgba(0,229,255,0.035) !important; }
+
+    @media (max-width: 900px) {
+      .stats-grid   { grid-template-columns: 1fr 1fr !important; }
+      .charts-grid  { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 700px) {
+      .filters-grid { grid-template-columns: 1fr 1fr !important; }
+      .cards-grid   { grid-template-columns: 1fr 1fr !important; }
+      .header-btns  { flex-wrap: wrap !important; gap: 8px !important; justify-content: center !important; }
+    }
+    @media (max-width: 480px) {
+      .filters-grid { grid-template-columns: 1fr !important; }
+      .cards-grid   { grid-template-columns: 1fr !important; }
+      .stats-grid   { grid-template-columns: 1fr 1fr !important; }
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback } = React;
+    const { useState, useEffect, useMemo, useCallback, useRef, memo } = React;
 
+    /* ── Constants ── */
     const NASA_TAP_URL =
       "https://exoplanetarchive.ipac.caltech.edu/TAP/sync" +
       "?REQUEST=doQuery&LANG=ADQL" +
@@ -54,47 +117,47 @@
       "+FROM+pscomppars" +
       "&FORMAT=json";
 
-    /* Fallback sample data shown when all network attempts fail */
+    const CACHE_KEY = "exoplanet_data_v1";
+
     const SAMPLE_DATA = [
-      {pl_name:"51 Peg b",      hostname:"51 Peg",     disc_year:1995,discoverymethod:"Radial Velocity",    disc_facility:"Haute-Provence Obs"},
-      {pl_name:"HD 209458 b",   hostname:"HD 209458",  disc_year:2000,discoverymethod:"Transit",            disc_facility:"FLWO 1.5m"},
-      {pl_name:"Kepler-22b",    hostname:"Kepler-22",  disc_year:2011,discoverymethod:"Transit",            disc_facility:"Kepler"},
-      {pl_name:"GJ 1214 b",     hostname:"GJ 1214",    disc_year:2009,discoverymethod:"Transit",            disc_facility:"MEarth Project"},
-      {pl_name:"TRAPPIST-1b",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
-      {pl_name:"TRAPPIST-1c",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
-      {pl_name:"TRAPPIST-1d",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
-      {pl_name:"TRAPPIST-1e",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
-      {pl_name:"TRAPPIST-1f",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
-      {pl_name:"TRAPPIST-1g",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",            disc_facility:"TRAPPIST"},
-      {pl_name:"TRAPPIST-1h",   hostname:"TRAPPIST-1", disc_year:2017,discoverymethod:"Transit",            disc_facility:"Spitzer"},
-      {pl_name:"Proxima Cen b", hostname:"Proxima Cen",disc_year:2016,discoverymethod:"Radial Velocity",    disc_facility:"ESO 3.6m"},
-      {pl_name:"HD 40307 g",    hostname:"HD 40307",   disc_year:2012,discoverymethod:"Radial Velocity",    disc_facility:"HARPS"},
-      {pl_name:"Kepler-442b",   hostname:"Kepler-442", disc_year:2015,discoverymethod:"Transit",            disc_facility:"Kepler"},
-      {pl_name:"Kepler-452b",   hostname:"Kepler-452", disc_year:2015,discoverymethod:"Transit",            disc_facility:"Kepler"},
-      {pl_name:"55 Cnc e",      hostname:"55 Cnc",     disc_year:2004,discoverymethod:"Radial Velocity",    disc_facility:"ELODIE"},
-      {pl_name:"Kepler-186f",   hostname:"Kepler-186", disc_year:2014,discoverymethod:"Transit",            disc_facility:"Kepler"},
-      {pl_name:"LHS 1140 b",    hostname:"LHS 1140",   disc_year:2017,discoverymethod:"Transit",            disc_facility:"MEarth"},
-      {pl_name:"GJ 436 b",      hostname:"GJ 436",     disc_year:2004,discoverymethod:"Radial Velocity",    disc_facility:"ELODIE"},
-      {pl_name:"HR 8799 b",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",            disc_facility:"Keck"},
-      {pl_name:"HR 8799 c",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",            disc_facility:"Keck"},
-      {pl_name:"HR 8799 d",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",            disc_facility:"Keck"},
-      {pl_name:"HR 8799 e",     hostname:"HR 8799",    disc_year:2010,discoverymethod:"Imaging",            disc_facility:"Keck"},
-      {pl_name:"tau Boo b",     hostname:"tau Boo",    disc_year:1997,discoverymethod:"Radial Velocity",    disc_facility:"Lick"},
-      {pl_name:"ups And b",     hostname:"ups And",    disc_year:1996,discoverymethod:"Radial Velocity",    disc_facility:"Lick"},
-      {pl_name:"ups And c",     hostname:"ups And",    disc_year:1999,discoverymethod:"Radial Velocity",    disc_facility:"Lick"},
-      {pl_name:"ups And d",     hostname:"ups And",    disc_year:1999,discoverymethod:"Radial Velocity",    disc_facility:"Lick"},
-      {pl_name:"HD 189733 b",   hostname:"HD 189733",  disc_year:2005,discoverymethod:"Radial Velocity",    disc_facility:"OHP"},
-      {pl_name:"WASP-12 b",     hostname:"WASP-12",    disc_year:2008,discoverymethod:"Transit",            disc_facility:"SuperWASP"},
-      {pl_name:"TOI-700 d",     hostname:"TOI-700",    disc_year:2020,discoverymethod:"Transit",            disc_facility:"TESS"},
+      {pl_name:"51 Peg b",      hostname:"51 Peg",     disc_year:1995,discoverymethod:"Radial Velocity",disc_facility:"Haute-Provence Obs"},
+      {pl_name:"HD 209458 b",   hostname:"HD 209458",  disc_year:2000,discoverymethod:"Transit",       disc_facility:"FLWO 1.5m"},
+      {pl_name:"Kepler-22b",    hostname:"Kepler-22",  disc_year:2011,discoverymethod:"Transit",       disc_facility:"Kepler"},
+      {pl_name:"GJ 1214 b",     hostname:"GJ 1214",    disc_year:2009,discoverymethod:"Transit",       disc_facility:"MEarth Project"},
+      {pl_name:"TRAPPIST-1b",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",       disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1c",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",       disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1d",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",       disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1e",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",       disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1f",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",       disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1g",   hostname:"TRAPPIST-1", disc_year:2016,discoverymethod:"Transit",       disc_facility:"TRAPPIST"},
+      {pl_name:"TRAPPIST-1h",   hostname:"TRAPPIST-1", disc_year:2017,discoverymethod:"Transit",       disc_facility:"Spitzer"},
+      {pl_name:"Proxima Cen b", hostname:"Proxima Cen",disc_year:2016,discoverymethod:"Radial Velocity",disc_facility:"ESO 3.6m"},
+      {pl_name:"HD 40307 g",    hostname:"HD 40307",   disc_year:2012,discoverymethod:"Radial Velocity",disc_facility:"HARPS"},
+      {pl_name:"Kepler-442b",   hostname:"Kepler-442", disc_year:2015,discoverymethod:"Transit",       disc_facility:"Kepler"},
+      {pl_name:"Kepler-452b",   hostname:"Kepler-452", disc_year:2015,discoverymethod:"Transit",       disc_facility:"Kepler"},
+      {pl_name:"55 Cnc e",      hostname:"55 Cnc",     disc_year:2004,discoverymethod:"Radial Velocity",disc_facility:"ELODIE"},
+      {pl_name:"Kepler-186f",   hostname:"Kepler-186", disc_year:2014,discoverymethod:"Transit",       disc_facility:"Kepler"},
+      {pl_name:"LHS 1140 b",    hostname:"LHS 1140",   disc_year:2017,discoverymethod:"Transit",       disc_facility:"MEarth"},
+      {pl_name:"GJ 436 b",      hostname:"GJ 436",     disc_year:2004,discoverymethod:"Radial Velocity",disc_facility:"ELODIE"},
+      {pl_name:"HR 8799 b",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",       disc_facility:"Keck"},
+      {pl_name:"HR 8799 c",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",       disc_facility:"Keck"},
+      {pl_name:"HR 8799 d",     hostname:"HR 8799",    disc_year:2008,discoverymethod:"Imaging",       disc_facility:"Keck"},
+      {pl_name:"HR 8799 e",     hostname:"HR 8799",    disc_year:2010,discoverymethod:"Imaging",       disc_facility:"Keck"},
+      {pl_name:"tau Boo b",     hostname:"tau Boo",    disc_year:1997,discoverymethod:"Radial Velocity",disc_facility:"Lick"},
+      {pl_name:"ups And b",     hostname:"ups And",    disc_year:1996,discoverymethod:"Radial Velocity",disc_facility:"Lick"},
+      {pl_name:"ups And c",     hostname:"ups And",    disc_year:1999,discoverymethod:"Radial Velocity",disc_facility:"Lick"},
+      {pl_name:"ups And d",     hostname:"ups And",    disc_year:1999,discoverymethod:"Radial Velocity",disc_facility:"Lick"},
+      {pl_name:"HD 189733 b",   hostname:"HD 189733",  disc_year:2005,discoverymethod:"Radial Velocity",disc_facility:"OHP"},
+      {pl_name:"WASP-12 b",     hostname:"WASP-12",    disc_year:2008,discoverymethod:"Transit",       disc_facility:"SuperWASP"},
+      {pl_name:"TOI-700 d",     hostname:"TOI-700",    disc_year:2020,discoverymethod:"Transit",       disc_facility:"TESS"},
     ];
 
-    /* Try each proxy with a per-attempt timeout of 8 s */
     const CORS_PROXIES = [
-      url => url,                                                                   // direct
-      url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,               // corsproxy.io
-      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,      // allorigins
-      url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, // codetabs
-      url => `https://thingproxy.freeboard.io/fetch/${url}`,                       // thingproxy
+      url => url,
+      url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+      url => `https://thingproxy.freeboard.io/fetch/${url}`,
     ];
 
     async function fetchWithTimeout(url, ms = 8000) {
@@ -125,120 +188,248 @@
     }
 
     const COLS = [
-      { key: "pl_name",         label: "Planet Name"     },
-      { key: "hostname",        label: "Host Star"        },
-      { key: "disc_year",       label: "Discovery Year"   },
-      { key: "discoverymethod", label: "Method"           },
-      { key: "disc_facility",   label: "Facility"         },
+      { key: "pl_name",         label: "Planet Name"   },
+      { key: "hostname",        label: "Host Star"      },
+      { key: "disc_year",       label: "Year"           },
+      { key: "discoverymethod", label: "Method"         },
+      { key: "disc_facility",   label: "Facility"       },
     ];
 
     const FILTERS = [
-      { key: "disc_year",       label: "Discovery Year"      },
-      { key: "discoverymethod", label: "Discovery Method"     },
-      { key: "hostname",        label: "Host Star Name"       },
-      { key: "disc_facility",   label: "Discovery Facility"   },
+      { key: "disc_year",       label: "Discovery Year"    },
+      { key: "discoverymethod", label: "Discovery Method"  },
+      { key: "hostname",        label: "Host Star"         },
+      { key: "disc_facility",   label: "Facility"          },
     ];
 
-    /* ── Star field ── */
+    const METHOD_COLORS = {
+      "Transit":                          "#00e5ff",
+      "Radial Velocity":                  "#00ff9d",
+      "Imaging":                          "#ffaa00",
+      "Microlensing":                     "#ff44cc",
+      "Astrometry":                       "#aaff00",
+      "Timing Variations":                "#ff8844",
+      "Eclipse Timing Variations":        "#ff8844",
+      "Transit Timing Variations":        "#ff8844",
+      "Pulsation Timing Variations":      "#ff8844",
+      "Disk Kinematics":                  "#cc88ff",
+      "Orbital Brightness Modulation":    "#88ccff",
+    };
+
+    const CHART_PALETTE = [
+      "#00e5ff","#00ff9d","#ffaa00","#ff44cc","#aaff00",
+      "#ff8844","#cc88ff","#88ccff","#ff6688","#aaffcc",
+      "#ffee55","#44ccff",
+    ];
+
+    /* Deterministic integer hash from string */
+    function strHash(s) {
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+      return Math.abs(h);
+    }
+
+    /* Generate procedural planet palette from physical properties */
+    function getPlanetColors(planet) {
+      const temp  = Number(planet.pl_eqt)    || 0;
+      const mass  = Number(planet.pl_bmasse) || 0;
+      const hash  = strHash(planet.pl_name || "x");
+
+      if (temp > 2000) return { c1:"#cc1100", c2:"#ff5500", c3:"#ffaa44", atm:"rgba(255,80,0,0.28)", ring:false };
+      if (temp > 1000) return { c1:"#dd5500", c2:"#ff8800", c3:"#ffcc55", atm:"rgba(255,140,0,0.22)", ring:false };
+      if (temp > 500)  return { c1:"#aa7700", c2:"#ddaa00", c3:"#ffdd66", atm:"rgba(220,180,0,0.20)", ring:false };
+      if (temp > 250 && temp <= 500) return { c1:"#006644", c2:"#00aa77", c3:"#44ddaa", atm:"rgba(0,200,120,0.25)", ring:mass > 50 };
+      if (temp > 50  && temp <= 250) return { c1:"#1144aa", c2:"#3377dd", c3:"#88bbff", atm:"rgba(50,130,255,0.25)", ring:mass > 80 };
+      if (mass > 300) return { c1:"#aa5500", c2:"#cc7722", c3:"#eeaa55", atm:"rgba(200,100,30,0.25)", ring:true  };
+      if (mass > 50)  return { c1:"#330077", c2:"#5522aa", c3:"#9966dd", atm:"rgba(120,60,220,0.28)", ring:(hash % 3 === 0) };
+
+      /* Deterministic fallback from name */
+      const hues  = [200, 270, 140, 30, 300, 170, 55, 320];
+      const hue   = hues[hash % hues.length];
+      const h2    = (hue + 40) % 360;
+      const h3    = (hue + 80) % 360;
+      return {
+        c1: `hsl(${hue},65%,30%)`, c2: `hsl(${h2},75%,48%)`, c3: `hsl(${h3},55%,65%)`,
+        atm: `hsla(${hue},70%,50%,0.22)`, ring: (hash % 5 === 0),
+      };
+    }
+
+    /* ─────────────────── StarField ─────────────────── */
     function StarField() {
-      const stars = useMemo(() =>
-        Array.from({ length: 120 }, (_, i) => ({
-          id:      i,
-          x:       Math.random() * 100,
-          y:       Math.random() * 100,
-          r:       Math.random() * 1.5 + 0.3,
-          opacity: Math.random() * 0.6 + 0.2,
-          delay:   Math.random() * 4,
-        })), []);
+      const stars = useMemo(() => Array.from({ length: 180 }, (_, i) => ({
+        id: i,
+        x:  Math.random() * 100, y: Math.random() * 100,
+        r:  Math.random() * 1.7 + 0.2,
+        op: Math.random() * 0.65 + 0.1,
+        delay: Math.random() * 5,
+        dur:   2.5 + Math.random() * 4,
+      })), []);
 
       return (
-        <svg style={{ position:"fixed", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:0 }}>
-          {stars.map(s => (
-            <circle
-              key={s.id}
-              cx={`${s.x}%`} cy={`${s.y}%`} r={s.r}
-              fill="white" opacity={s.opacity}
-              style={{
-                animation: `twinkle ${2 + s.delay}s ease-in-out infinite alternate`,
-                animationDelay: `${s.delay}s`,
-              }}
-            />
-          ))}
+        <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, overflow:"hidden" }}>
+          {/* Nebula layers */}
+          <div style={{
+            position:"absolute", inset:0,
+            background:
+              "radial-gradient(ellipse 80% 60% at 15% 25%, rgba(0,80,160,0.13) 0%, transparent 60%)," +
+              "radial-gradient(ellipse 55% 70% at 85% 75%, rgba(90,0,130,0.11) 0%, transparent 60%)," +
+              "radial-gradient(ellipse 40% 40% at 55% 45%, rgba(0,40,80,0.35) 0%, transparent 100%)",
+            animation: "nebulaDrift 32s ease-in-out infinite",
+          }} />
+          <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%" }}>
+            {stars.map(s => (
+              <circle key={s.id}
+                cx={`${s.x}%`} cy={`${s.y}%`} r={s.r}
+                fill="white" opacity={s.op}
+                style={{ animation:`twinkle ${s.dur}s ease-in-out ${s.delay}s infinite alternate` }}
+              />
+            ))}
+          </svg>
+        </div>
+      );
+    }
+
+    /* ─────────────────── PlanetVisual ─────────────────── */
+    function PlanetVisual({ planet, size = 80 }) {
+      const { c1, c2, c3, atm, ring } = getPlanetColors(planet);
+      const hash = strHash(planet.pl_name || "x");
+      const r  = size * 0.37;
+      const cx = size / 2, cy = size / 2;
+      const uid = `pv${hash % 999983}`;
+
+      /* 3 surface blobs */
+      const blobs = useMemo(() => Array.from({ length: 3 }, (_, i) => {
+        const angle = ((hash * (i + 1) * 137.5) % 360) * Math.PI / 180;
+        const dist  = r * (0.25 + (hash * (i + 3) % 100) / 400);
+        return { x: cx + dist * Math.cos(angle), y: cy + dist * Math.sin(angle) * 0.6, r: r * (0.09 + i * 0.03) };
+      }), [cx, cy, r, hash]);
+
+      return (
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display:"block", flexShrink:0 }}>
+          <defs>
+            <radialGradient id={`pg_${uid}`} cx="38%" cy="32%" r="65%">
+              <stop offset="0%"   stopColor={c3} stopOpacity="0.9" />
+              <stop offset="45%"  stopColor={c2} stopOpacity="1"   />
+              <stop offset="100%" stopColor={c1} stopOpacity="1"   />
+            </radialGradient>
+            <radialGradient id={`atm_${uid}`} cx="50%" cy="50%" r="56%">
+              <stop offset="68%" stopColor="transparent" />
+              <stop offset="100%" stopColor={atm} />
+            </radialGradient>
+            <filter id={`gf_${uid}`}>
+              <feGaussianBlur stdDeviation="2.2" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+          {/* Outer glow halo */}
+          <circle cx={cx} cy={cy} r={r + 8} fill={atm} opacity="0.45"
+            style={{ animation:"glow 3.5s ease-in-out infinite" }} />
+          {/* Ring */}
+          {ring && (
+            <ellipse cx={cx} cy={cy} rx={r * 1.75} ry={r * 0.32}
+              fill="none" stroke={c2} strokeWidth="1.8" opacity="0.45"
+              strokeDasharray="3 2" />
+          )}
+          {/* Planet body */}
+          <circle cx={cx} cy={cy} r={r} fill={`url(#pg_${uid})`} filter={`url(#gf_${uid})`} />
+          {/* Atmosphere rim */}
+          <circle cx={cx} cy={cy} r={r} fill={`url(#atm_${uid})`} />
+          {/* Surface detail */}
+          {blobs.map((b, i) => <circle key={i} cx={b.x} cy={b.y} r={b.r} fill={c1} opacity="0.22" />)}
+          {/* Specular highlight */}
+          <ellipse cx={cx - r * 0.26} cy={cy - r * 0.27} rx={r * 0.19} ry={r * 0.11}
+            fill="white" opacity="0.14"
+            transform={`rotate(-35,${cx - r * 0.26},${cy - r * 0.27})`} />
         </svg>
       );
     }
 
-    /* ── Sort icon ── */
-    function SortIcon({ dir }) {
-      if (!dir) return (
-        <span style={{ display:"inline-flex", flexDirection:"column", gap:1, marginLeft:4, opacity:0.35, verticalAlign:"middle" }}>
-          <span style={{ fontSize:8, lineHeight:1 }}>▲</span>
-          <span style={{ fontSize:8, lineHeight:1 }}>▼</span>
-        </span>
-      );
+    /* ─────────────────── Skeletons ─────────────────── */
+    function SkeletonRow() {
       return (
-        <span style={{ marginLeft:4, fontSize:10, color:"#00e5ff", verticalAlign:"middle" }}>
-          {dir === "asc" ? "▲" : "▼"}
-        </span>
+        <tr style={{ borderBottom:"1px solid #00e5ff08" }}>
+          {[70, 55, 35, 60, 65].map((w, i) => (
+            <td key={i} style={{ padding:"12px 16px" }}>
+              <div className="skeleton" style={{ height:13, width:`${w}%` }} />
+            </td>
+          ))}
+          <td style={{ padding:"12px 16px" }}>
+            <div className="skeleton" style={{ height:13, width:20 }} />
+          </td>
+        </tr>
       );
     }
 
-    /* ── Info chip (label + value row) ── */
+    function SkeletonCard() {
+      return (
+        <div style={{ background:"rgba(0,12,30,0.7)", border:"1px solid rgba(0,229,255,0.07)",
+          borderRadius:14, padding:20, display:"flex", flexDirection:"column", gap:12 }}>
+          <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+            <div className="skeleton" style={{ width:64, height:64, borderRadius:"50%", flexShrink:0 }} />
+            <div style={{ flex:1, display:"flex", flexDirection:"column", gap:8 }}>
+              <div className="skeleton" style={{ height:15, width:"70%" }} />
+              <div className="skeleton" style={{ height:11, width:"50%" }} />
+              <div className="skeleton" style={{ height:11, width:"40%" }} />
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height:42, borderRadius:7 }} />)}
+          </div>
+        </div>
+      );
+    }
+
+    /* ─────────────────── SortIcon ─────────────────── */
+    function SortIcon({ dir }) {
+      if (!dir) return (
+        <span style={{ display:"inline-flex", flexDirection:"column", gap:1, marginLeft:4, opacity:0.3, verticalAlign:"middle" }}>
+          <span style={{ fontSize:7, lineHeight:1 }}>▲</span>
+          <span style={{ fontSize:7, lineHeight:1 }}>▼</span>
+        </span>
+      );
+      return <span style={{ marginLeft:4, fontSize:9, color:"#00e5ff", verticalAlign:"middle" }}>{dir === "asc" ? "▲" : "▼"}</span>;
+    }
+
+    /* ─────────────────── InfoChip ─────────────────── */
     function InfoChip({ label, value }) {
       return (
-        <div style={{ flex:1, minWidth:120 }}>
-          <div style={{ fontSize:9, color:"#4a9ab5", letterSpacing:"0.18em", textTransform:"uppercase",
+        <div style={{ flex:1, minWidth:110 }}>
+          <div style={{ fontSize:9, color:"#4a9ab5", letterSpacing:"0.17em", textTransform:"uppercase",
             marginBottom:4, fontFamily:"'Orbitron',sans-serif" }}>{label}</div>
           <div style={{ color:"#a0d8ef", fontSize:13 }}>{value || "—"}</div>
         </div>
       );
     }
 
-    /* ── Stat card ── */
+    /* ─────────────────── StatCard ─────────────────── */
     function StatCard({ icon, label, value }) {
       return (
-        <div style={{ background:"rgba(0,30,55,0.65)", border:"1px solid #00e5ff15",
-          borderRadius:10, padding:"13px 14px" }}>
-          <div style={{ fontSize:20, marginBottom:6, lineHeight:1 }}>{icon}</div>
-          <div style={{ fontSize:9, color:"#4a9ab5", letterSpacing:"0.15em",
-            textTransform:"uppercase", marginBottom:5,
-            fontFamily:"'Orbitron',sans-serif" }}>{label}</div>
-          <div style={{ color:"#e0f7ff", fontSize:14, fontWeight:600 }}>{value}</div>
+        <div style={{ background:"rgba(0,28,50,0.55)", border:"1px solid rgba(0,229,255,0.1)",
+          borderRadius:9, padding:"11px 13px" }}>
+          <div style={{ fontSize:17, marginBottom:5 }}>{icon}</div>
+          <div style={{ fontSize:9, color:"#4a9ab5", letterSpacing:"0.14em", textTransform:"uppercase",
+            marginBottom:4, fontFamily:"'Orbitron',sans-serif" }}>{label}</div>
+          <div style={{ color:"#e0f7ff", fontSize:13, fontWeight:600 }}>{value}</div>
         </div>
       );
     }
 
-    /* ── Planet detail modal ── */
-    const METHOD_COLORS = {
-      "Transit":         "#00e5ff",
-      "Radial Velocity": "#00ff9d",
-      "Imaging":         "#ffaa00",
-      "Microlensing":    "#ff44cc",
-      "Astrometry":      "#aaff00",
-      "Timing Variations":"#ff8844",
-    };
-
-    function PlanetModal({ planet, onClose }) {
-      const [imgUrl,    setImgUrl]    = useState(null);
+    /* ─────────────────── PlanetModal ─────────────────── */
+    function PlanetModal({ planet, onClose, onFavorite, isFavorite }) {
+      const [imgUrl, setImgUrl]     = useState(null);
       const [imgLoaded, setImgLoaded] = useState(false);
 
-      /* Fetch image from NASA Images & Video Library */
       useEffect(() => {
         let cancelled = false;
         async function fetchImage() {
-          const queries = [planet.pl_name, planet.hostname, "exoplanet artist concept"];
+          const queries = [planet.pl_name, planet.hostname, "exoplanet space artist"];
           for (const q of queries) {
             try {
-              const res = await fetch(
-                `https://images-api.nasa.gov/search?q=${encodeURIComponent(q)}&media_type=image`
-              );
+              const res = await fetch(`https://images-api.nasa.gov/search?q=${encodeURIComponent(q)}&media_type=image`);
               if (!res.ok) continue;
               const data = await res.json();
-              const items = data?.collection?.items;
-              if (items?.length) {
-                const link = items[0]?.links?.find(l => l.rel === "preview");
-                if (link?.href && !cancelled) { setImgUrl(link.href); return; }
-              }
+              const link = data?.collection?.items?.[0]?.links?.find(l => l.rel === "preview");
+              if (link?.href && !cancelled) { setImgUrl(link.href); return; }
             } catch (_) {}
           }
         }
@@ -246,204 +437,446 @@
         return () => { cancelled = true; };
       }, [planet.pl_name, planet.hostname]);
 
-      /* Close on Escape */
       useEffect(() => {
-        const handler = e => { if (e.key === "Escape") onClose(); };
-        window.addEventListener("keydown", handler);
-        return () => window.removeEventListener("keydown", handler);
+        const onKey = e => { if (e.key === "Escape") onClose(); };
+        window.addEventListener("keydown", onKey);
+        document.body.style.overflow = "hidden";
+        return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
       }, [onClose]);
 
       const fmt = (v, unit = "", dp = 2) =>
-        (v == null || v === "") ? "—"
-          : `${Number(v).toLocaleString(undefined, { maximumFractionDigits: dp })}${unit ? "\u2009" + unit : ""}`;
+        (v == null || v === "") ? "—" : `${Number(v).toLocaleString(undefined,{maximumFractionDigits:dp})}${unit ? "\u2009"+unit : ""}`;
 
-      const methodColor = METHOD_COLORS[planet.discoverymethod] || "#00e5ff";
+      const mc  = METHOD_COLORS[planet.discoverymethod] || "#00e5ff";
+      const { c1, c2 } = getPlanetColors(planet);
 
       return (
-        <div
-          onClick={onClose}
-          style={{ position:"fixed", inset:0, zIndex:100,
-            background:"rgba(0,5,18,0.82)", backdropFilter:"blur(7px)",
-            display:"flex", alignItems:"center", justifyContent:"center",
-            padding:"20px", animation:"fadeUp 0.2s ease" }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ width:"100%", maxWidth:640,
-              background:"linear-gradient(145deg,rgba(0,20,45,0.98),rgba(0,10,28,0.99))",
-              border:"1px solid #00e5ff2a",
-              borderRadius:18,
-              boxShadow:"0 0 80px #00e5ff10, 0 24px 70px #00000099, inset 0 1px 0 #00e5ff18",
-              overflow:"hidden", maxHeight:"92vh", overflowY:"auto",
-              animation:"modalIn 0.32s cubic-bezier(0.34,1.4,0.64,1)" }}
-          >
-            {/* ── Hero image ── */}
-            <div style={{ position:"relative", height:230,
-              background:"linear-gradient(135deg,#010c1e,#021b30)", overflow:"hidden" }}>
+        <div onClick={onClose} style={{
+          position:"fixed", inset:0, zIndex:200,
+          background:"rgba(1,4,14,0.88)", backdropFilter:"blur(10px)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          padding:20, animation:"fadeIn 0.2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width:"100%", maxWidth:660,
+            background:"linear-gradient(148deg,rgba(0,16,38,0.98),rgba(0,8,20,0.99))",
+            border:`1px solid ${mc}30`, borderRadius:20,
+            boxShadow:`0 0 100px ${mc}12, 0 30px 80px rgba(0,0,0,0.8), inset 0 1px 0 ${mc}20`,
+            overflow:"hidden", maxHeight:"92vh", overflowY:"auto",
+            animation:"modalIn 0.35s cubic-bezier(0.34,1.4,0.64,1)",
+          }}>
 
+            {/* Hero area */}
+            <div style={{ position:"relative", height:240, background:"#010c1e", overflow:"hidden" }}>
+              {/* Colour wash from planet palette */}
+              <div style={{
+                position:"absolute", inset:0,
+                background:`radial-gradient(ellipse at 30% 60%, ${c1}30 0%, transparent 55%),` +
+                           `radial-gradient(ellipse at 72% 28%, ${c2}22 0%, transparent 50%)`,
+              }} />
               {imgUrl ? (
-                <img src={imgUrl} alt={planet.pl_name}
+                <img src={imgUrl} alt={planet.pl_name} loading="lazy"
                   onLoad={() => setImgLoaded(true)}
                   style={{ width:"100%", height:"100%", objectFit:"cover",
-                    opacity: imgLoaded ? 1 : 0, transition:"opacity 0.6s" }} />
+                    opacity: imgLoaded ? 1 : 0, transition:"opacity 0.8s" }} />
               ) : (
-                /* Artistic SVG placeholder */
-                <svg width="100%" height="100%" viewBox="0 0 640 230" fill="none">
-                  <defs>
-                    <radialGradient id="bg" cx="50%" cy="40%" r="70%">
-                      <stop offset="0%" stopColor="#0a3550"/>
-                      <stop offset="100%" stopColor="#010c1e"/>
-                    </radialGradient>
-                    <radialGradient id="planet" cx="42%" cy="38%" r="58%">
-                      <stop offset="0%" stopColor="#1a6a8a"/>
-                      <stop offset="60%" stopColor="#0d3a5a"/>
-                      <stop offset="100%" stopColor="#040e20"/>
-                    </radialGradient>
-                  </defs>
-                  <rect width="640" height="230" fill="url(#bg)"/>
-                  {[...Array(40)].map((_, i) => (
-                    <circle key={i}
-                      cx={((i * 73 + 17) % 620) + 10}
-                      cy={((i * 47 + 11) % 210) + 10}
-                      r={i % 3 === 0 ? 1.2 : 0.6}
-                      fill="white" opacity={(i % 5 + 1) * 0.12}/>
-                  ))}
-                  <circle cx="310" cy="115" r="82" fill="url(#planet)"/>
-                  <circle cx="310" cy="115" r="82" fill="none" stroke="#00e5ff" strokeWidth="0.8" opacity="0.25"/>
-                  <ellipse cx="310" cy="115" rx="148" ry="34" fill="none" stroke="#00e5ff" strokeWidth="2.5" opacity="0.35"/>
-                  <ellipse cx="310" cy="115" rx="180" ry="44" fill="none" stroke="#00e5ff" strokeWidth="1" opacity="0.15"/>
-                  <circle cx="390" cy="75" r="9" fill="#00e5ff" opacity="0.55"/>
-                  <circle cx="390" cy="75" r="16" fill="none" stroke="#00e5ff" strokeWidth="1" opacity="0.2"/>
-                </svg>
-              )}
-
-              {/* Gradient overlay */}
-              <div style={{ position:"absolute", inset:0,
-                background:"linear-gradient(to bottom,rgba(0,5,18,0.05) 0%,rgba(0,10,28,0.88) 100%)" }}/>
-
-              {/* Close button */}
-              <button onClick={onClose}
-                onMouseEnter={e => { e.currentTarget.style.background="rgba(0,229,255,0.2)"; e.currentTarget.style.borderColor="#00e5ff66"; }}
-                onMouseLeave={e => { e.currentTarget.style.background="rgba(0,15,35,0.8)"; e.currentTarget.style.borderColor="#00e5ff33"; }}
-                style={{ position:"absolute", top:14, right:14,
-                  width:34, height:34, borderRadius:"50%",
-                  background:"rgba(0,15,35,0.8)", border:"1px solid #00e5ff33",
-                  color:"#00e5ff", fontSize:15, cursor:"pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  transition:"all 0.2s", lineHeight:1 }}>
-                ✕
-              </button>
-
-              {/* Planet name + badge */}
-              <div style={{ position:"absolute", bottom:18, left:22, right:60 }}>
-                <div style={{ display:"inline-block", padding:"3px 11px",
-                  background:`${methodColor}1a`, border:`1px solid ${methodColor}55`,
-                  borderRadius:20, fontSize:9, color:methodColor,
-                  letterSpacing:"0.18em", textTransform:"uppercase",
-                  fontFamily:"'Orbitron',sans-serif", marginBottom:9 }}>
-                  {planet.discoverymethod || "Unknown Method"}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%" }}>
+                  <div style={{ animation:"float 4.5s ease-in-out infinite" }}>
+                    <PlanetVisual planet={planet} size={160} />
+                  </div>
                 </div>
-                <h2 style={{ fontFamily:"'Orbitron',sans-serif",
-                  fontSize:"clamp(17px,3.5vw,26px)", fontWeight:900,
-                  color:"#e0f7ff", textShadow:"0 0 24px #00e5ff88",
-                  letterSpacing:"0.06em", lineHeight:1.2 }}>
-                  {planet.pl_name}
-                </h2>
+              )}
+              <div style={{ position:"absolute", inset:0,
+                background:"linear-gradient(to bottom, rgba(0,4,14,0.05) 0%, rgba(0,8,20,0.88) 100%)" }} />
+
+              {/* Close btn */}
+              <button onClick={onClose} title="Close (Esc)" style={{
+                position:"absolute", top:14, right:14, width:34, height:34,
+                borderRadius:"50%", background:"rgba(0,8,26,0.82)",
+                border:"1px solid rgba(0,229,255,0.22)", color:"#00e5ff",
+                fontSize:13, cursor:"pointer", display:"flex",
+                alignItems:"center", justifyContent:"center", transition:"background 0.2s",
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(0,229,255,0.14)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(0,8,26,0.82)"}
+              >✕</button>
+
+              {/* Favourite btn */}
+              <button onClick={e => { e.stopPropagation(); onFavorite(planet.pl_name); }}
+                className="fav-btn"
+                title={isFavorite ? "Remove from favorites" : "Save to favorites"}
+                style={{
+                  position:"absolute", top:14, right:56, width:34, height:34,
+                  borderRadius:"50%", background:"rgba(0,8,26,0.82)",
+                  border:"1px solid rgba(0,229,255,0.22)", cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  color: isFavorite ? "#ffcc00" : "#3a6a7a", fontSize:17, transition:"all 0.2s",
+                }}
+              >{isFavorite ? "★" : "☆"}</button>
+
+              {/* Title */}
+              <div style={{ position:"absolute", bottom:18, left:22, right:110 }}>
+                <div style={{
+                  display:"inline-block", padding:"3px 11px",
+                  background:`${mc}18`, border:`1px solid ${mc}44`,
+                  borderRadius:20, fontSize:9, color:mc,
+                  letterSpacing:"0.18em", textTransform:"uppercase",
+                  fontFamily:"'Orbitron',sans-serif", marginBottom:8,
+                }}>{planet.discoverymethod || "Unknown Method"}</div>
+                <h2 style={{
+                  fontFamily:"'Orbitron',sans-serif",
+                  fontSize:"clamp(15px,3.5vw,23px)", fontWeight:900,
+                  color:"#e4f6ff", textShadow:`0 0 28px ${mc}80`,
+                  letterSpacing:"0.06em", lineHeight:1.2,
+                }}>{planet.pl_name}</h2>
               </div>
             </div>
 
-            {/* ── Body ── */}
+            {/* Body */}
             <div style={{ padding:"22px 24px 28px" }}>
-
-              {/* Meta row */}
-              <div style={{ display:"flex", gap:20, marginBottom:22, flexWrap:"wrap",
-                paddingBottom:18, borderBottom:"1px solid #00e5ff0f" }}>
-                <InfoChip label="Host Star" value={planet.hostname}/>
-                <InfoChip label="Discovery Year" value={planet.disc_year}/>
-                <InfoChip label="Facility" value={planet.disc_facility}/>
+              <div style={{ display:"flex", gap:20, flexWrap:"wrap", marginBottom:20,
+                paddingBottom:18, borderBottom:"1px solid rgba(0,229,255,0.06)" }}>
+                <InfoChip label="Host Star"      value={planet.hostname}      />
+                <InfoChip label="Discovery Year" value={planet.disc_year}     />
+                <InfoChip label="Facility"       value={planet.disc_facility} />
               </div>
 
-              {/* Stats grid */}
-              <div style={{ display:"grid",
-                gridTemplateColumns:"repeat(auto-fill,minmax(135px,1fr))",
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",
                 gap:10, marginBottom:22 }}>
-                <StatCard icon="🔄" label="Orbital Period" value={fmt(planet.pl_orbper, "days")}/>
-                <StatCard icon="🌍" label="Radius" value={fmt(planet.pl_rade, "R⊕")}/>
-                <StatCard icon="⚖️" label="Mass" value={fmt(planet.pl_bmasse, "M⊕")}/>
-                <StatCard icon="🌡️" label="Eq. Temp." value={fmt(planet.pl_eqt, "K", 0)}/>
-                <StatCard icon="☀️" label="Semi-Major Axis" value={fmt(planet.pl_orbsmax, "AU")}/>
-                <StatCard icon="📡" label="Distance" value={fmt(planet.sy_dist, "pc")}/>
-                <StatCard icon="🥚" label="Eccentricity" value={fmt(planet.pl_orbeccen, "", 4)}/>
+                <StatCard icon="🔄" label="Orbital Period" value={fmt(planet.pl_orbper,  "days"  )} />
+                <StatCard icon="🌍" label="Radius"         value={fmt(planet.pl_rade,    "R⊕"   )} />
+                <StatCard icon="⚖️" label="Mass"           value={fmt(planet.pl_bmasse,  "M⊕"   )} />
+                <StatCard icon="🌡️" label="Eq. Temp."      value={fmt(planet.pl_eqt,     "K",  0)} />
+                <StatCard icon="☀️" label="Semi-Maj. Axis" value={fmt(planet.pl_orbsmax, "AU"    )} />
+                <StatCard icon="📡" label="Distance"       value={fmt(planet.sy_dist,    "pc"    )} />
+                <StatCard icon="🥚" label="Eccentricity"   value={fmt(planet.pl_orbeccen,"",   4)} />
               </div>
 
-              {/* CTA */}
-              <a
-                href={`https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(planet.pl_name)}`}
+              <a href={`https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(planet.pl_name)}`}
                 target="_blank" rel="noopener noreferrer"
-                onMouseEnter={e => { e.currentTarget.style.background="linear-gradient(135deg,#004a68,#002544)"; e.currentTarget.style.boxShadow="0 0 24px #00e5ff22"; }}
-                onMouseLeave={e => { e.currentTarget.style.background="linear-gradient(135deg,#003550,#001c30)"; e.currentTarget.style.boxShadow=""; }}
-                style={{ display:"block", textAlign:"center", padding:"13px 20px",
-                  background:"linear-gradient(135deg,#003550,#001c30)",
-                  border:"1px solid #00e5ff44", borderRadius:9,
-                  color:"#00e5ff", fontFamily:"'Orbitron',sans-serif",
+                style={{
+                  display:"block", textAlign:"center", padding:"13px 20px",
+                  background:`linear-gradient(135deg,${mc}18,${mc}09)`,
+                  border:`1px solid ${mc}44`, borderRadius:10,
+                  color:mc, fontFamily:"'Orbitron',sans-serif",
                   fontSize:10, letterSpacing:"0.22em", textDecoration:"none",
-                  textTransform:"uppercase", transition:"all 0.2s" }}>
-                View Full NASA Profile →
-              </a>
+                  textTransform:"uppercase", transition:"background 0.2s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg,${mc}2e,${mc}18)`}
+                onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg,${mc}18,${mc}09)`}
+              >View Full NASA Profile →</a>
             </div>
           </div>
         </div>
       );
     }
 
-    /* ── Main app ── */
-    function App() {
-      const [allData,      setAllData]      = useState([]);
-      const [loading,      setLoading]      = useState(true);
-      const [loadError,    setLoadError]    = useState(null);
-      const [loadProgress, setLoadProgress] = useState("Initializing uplink…");
-      const [filters,      setFilters]      = useState({ disc_year:"", discoverymethod:"", hostname:"", disc_facility:"" });
-      const [results,      setResults]      = useState(null);
-      const [queryError,   setQueryError]   = useState("");
-      const [sort,         setSort]         = useState({ col:null, dir:null });
-      const [selectedPlanet, setSelectedPlanet] = useState(null);
+    /* ─────────────────── PlanetCard ─────────────────── */
+    const PlanetCard = memo(function PlanetCard({ planet, onSelect, onFavorite, isFavorite }) {
+      const mc = METHOD_COLORS[planet.discoverymethod] || "#00e5ff";
+      return (
+        <div className="planet-card" onClick={() => onSelect(planet)} style={{
+          background:"linear-gradient(148deg,rgba(0,14,32,0.88),rgba(0,7,20,0.93))",
+          border:"1px solid rgba(0,229,255,0.1)", borderRadius:14,
+          padding:18, display:"flex", flexDirection:"column", gap:14,
+          position:"relative", overflow:"hidden",
+        }}>
+          {/* Method accent bar */}
+          <div style={{ position:"absolute", top:0, left:0, right:0, height:2,
+            background:`linear-gradient(90deg,${mc}99,transparent)` }} />
 
-      /* Fetch once on mount */
+          {/* Header row */}
+          <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+            <PlanetVisual planet={planet} size={72} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:13, fontWeight:700,
+                color:"#e0f7ff", marginBottom:5, whiteSpace:"nowrap",
+                overflow:"hidden", textOverflow:"ellipsis" }}>{planet.pl_name}</div>
+              <div style={{ fontSize:11, color:"#4a9ab5", marginBottom:5 }}>
+                ⭐ {planet.hostname || "Unknown"}
+              </div>
+              <span style={{
+                display:"inline-block", padding:"2px 9px",
+                background:`${mc}18`, border:`1px solid ${mc}44`,
+                borderRadius:10, fontSize:9, color:mc,
+                letterSpacing:"0.1em", fontFamily:"'Orbitron',sans-serif",
+              }}>{planet.discoverymethod || "Unknown"}</span>
+            </div>
+            <button onClick={e => { e.stopPropagation(); onFavorite(planet.pl_name); }}
+              className="fav-btn"
+              title={isFavorite ? "Remove favorite" : "Add to favorites"}
+              style={{ background:"none", border:"none", cursor:"pointer",
+                fontSize:19, color:isFavorite ? "#ffcc00" : "#243a4a",
+                alignSelf:"flex-start", padding:"0 2px", flexShrink:0 }}
+            >{isFavorite ? "★" : "☆"}</button>
+          </div>
+
+          {/* Stats grid */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            {[
+              { label:"Year",   value: planet.disc_year || "—" },
+              { label:"Radius", value: planet.pl_rade    ? `${Number(planet.pl_rade).toFixed(1)} R⊕`  : "—" },
+              { label:"Mass",   value: planet.pl_bmasse  ? `${Number(planet.pl_bmasse).toFixed(1)} M⊕` : "—" },
+              { label:"Temp",   value: planet.pl_eqt     ? `${Math.round(planet.pl_eqt)} K`            : "—" },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ background:"rgba(0,229,255,0.04)", borderRadius:7, padding:"8px 10px" }}>
+                <div style={{ fontSize:8, color:"#2a5a6a", letterSpacing:"0.15em",
+                  textTransform:"uppercase", marginBottom:3, fontFamily:"'Orbitron',sans-serif" }}>{label}</div>
+                <div style={{ fontSize:12, color:"#a0d8ef" }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    });
+
+    /* ─────────────────── ChartCanvas ─────────────────── */
+    function ChartCanvas({ chartType, data, options, height = 220 }) {
+      const canvasRef = useRef(null);
+      const chartRef  = useRef(null);
+
+      useEffect(() => {
+        if (!canvasRef.current || !data) return;
+        if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
+        chartRef.current = new Chart(canvasRef.current, { type: chartType, data, options });
+        return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+      }, [data, chartType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+      return <canvas ref={canvasRef} style={{ maxHeight: height }} />;
+    }
+
+    /* ─────────────────── ChartsPanel ─────────────────── */
+    function ChartsPanel({ allData }) {
+      const methodCounts = useMemo(() => {
+        const counts = {};
+        for (const r of allData) { const m = r.discoverymethod || "Unknown"; counts[m] = (counts[m]||0)+1; }
+        const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+        return { labels: sorted.map(([k])=>k), values: sorted.map(([,v])=>v) };
+      }, [allData]);
+
+      const yearCounts = useMemo(() => {
+        const counts = {};
+        for (const r of allData) { if (r.disc_year) counts[r.disc_year] = (counts[r.disc_year]||0)+1; }
+        const sorted = Object.entries(counts).sort((a,b)=>a[0]-b[0]);
+        return { labels: sorted.map(([k])=>k), values: sorted.map(([,v])=>v) };
+      }, [allData]);
+
+      const ttipDefaults = {
+        backgroundColor:"rgba(0,8,22,0.96)",
+        titleColor:"#00e5ff", bodyColor:"#a0d8ef",
+        borderColor:"#00e5ff33", borderWidth:1,
+      };
+      const legendDefaults = {
+        labels:{ color:"#6aacbc", font:{ family:"'Share Tech Mono',monospace", size:10 },
+          padding:12, boxWidth:11 },
+      };
+
+      const pieData = useMemo(() => ({
+        labels: methodCounts.labels,
+        datasets:[{ data: methodCounts.values,
+          backgroundColor: CHART_PALETTE,
+          borderColor:"rgba(0,0,0,0.45)", borderWidth:1.5 }],
+      }), [methodCounts]);
+
+      const barData = useMemo(() => ({
+        labels: yearCounts.labels,
+        datasets:[{ label:"Planets discovered", data: yearCounts.values,
+          backgroundColor:"rgba(0,229,255,0.22)", borderColor:"#00e5ff",
+          borderWidth:1.5, borderRadius:4 }],
+      }), [yearCounts]);
+
+      const pieOpts = {
+        responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ ...legendDefaults, position:"right" }, tooltip:ttipDefaults },
+      };
+      const barOpts = {
+        responsive:true, maintainAspectRatio:true,
+        scales:{
+          x:{ ticks:{ color:"#4a9ab5", font:{size:9}, maxRotation:45 }, grid:{ color:"#00e5ff08" } },
+          y:{ ticks:{ color:"#4a9ab5", font:{size:9} }, grid:{ color:"#00e5ff10" } },
+        },
+        plugins:{ legend:{ display:false }, tooltip:ttipDefaults },
+      };
+
+      return (
+        <div style={{ marginBottom:22, animation:"fadeUp 0.4s ease" }}>
+          <div style={{
+            background:"linear-gradient(140deg,rgba(0,18,40,0.88),rgba(0,10,24,0.93))",
+            border:"1px solid rgba(168,85,247,0.25)", borderRadius:14,
+            padding:"24px 24px", backdropFilter:"blur(12px)",
+            boxShadow:"0 4px 44px rgba(0,0,0,0.45)",
+          }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:22 }}>
+              <div style={{ width:6, height:6, borderRadius:"50%", background:"#a855f7",
+                boxShadow:"0 0 8px #a855f7", animation:"pulse 2s ease infinite" }} />
+              <h2 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:11,
+                letterSpacing:"0.22em", color:"#a855f7", textTransform:"uppercase" }}>
+                Data Visualisation
+              </h2>
+              <div style={{ flex:1, height:1, background:"linear-gradient(90deg,#a855f740,transparent)" }} />
+              <span style={{ fontSize:11, color:"#3a6a7a" }}>
+                {allData.length.toLocaleString()} planets total
+              </span>
+            </div>
+
+            <div className="charts-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1.7fr", gap:24 }}>
+              <div>
+                <div style={{ fontSize:10, color:"#4a9ab5", letterSpacing:"0.16em",
+                  textTransform:"uppercase", marginBottom:14, fontFamily:"'Orbitron',sans-serif" }}>
+                  Discovery Methods
+                </div>
+                <ChartCanvas chartType="doughnut" data={pieData} options={pieOpts} height={220} />
+              </div>
+              <div>
+                <div style={{ fontSize:10, color:"#4a9ab5", letterSpacing:"0.16em",
+                  textTransform:"uppercase", marginBottom:14, fontFamily:"'Orbitron',sans-serif" }}>
+                  Planets Discovered Per Year
+                </div>
+                <ChartCanvas chartType="bar" data={barData} options={barOpts} height={220} />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ─────────────────── FavoritesPanel ─────────────────── */
+    function FavoritesPanel({ allData, favorites, onClose, onSelect, onFavorite }) {
+      const favPlanets = useMemo(() => allData.filter(p => favorites.has(p.pl_name)), [allData, favorites]);
+
+      return (
+        <div onClick={onClose} style={{
+          position:"fixed", inset:0, zIndex:150,
+          background:"rgba(0,2,10,0.72)", backdropFilter:"blur(8px)",
+          display:"flex", justifyContent:"flex-end", animation:"fadeIn 0.2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width:"100%", maxWidth:375,
+            background:"linear-gradient(155deg,rgba(0,16,38,0.99),rgba(0,9,24,0.99))",
+            borderLeft:"1px solid rgba(0,229,255,0.14)",
+            overflowY:"auto", padding:"24px 20px",
+            animation:"slideInRight 0.3s cubic-bezier(0.34,1.2,0.64,1)",
+          }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+              <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:12,
+                color:"#ffcc00", letterSpacing:"0.2em" }}>
+                ★ FAVORITES ({favPlanets.length})
+              </div>
+              <button onClick={onClose}
+                style={{ background:"none", border:"none", color:"#4a9ab5", cursor:"pointer", fontSize:18 }}>✕</button>
+            </div>
+
+            {favPlanets.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"44px 20px",
+                color:"#213a4a", fontSize:13, lineHeight:1.8 }}>
+                No favorites yet.<br />Click ☆ on any planet to save it here.
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+                {favPlanets.map(p => (
+                  <div key={p.pl_name}
+                    onClick={() => { onSelect(p); onClose(); }}
+                    style={{
+                      background:"rgba(0,229,255,0.04)", border:"1px solid rgba(0,229,255,0.11)",
+                      borderRadius:10, padding:"13px 14px", cursor:"pointer",
+                      display:"flex", gap:13, alignItems:"center", transition:"background 0.18s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(0,229,255,0.08)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "rgba(0,229,255,0.04)"}
+                  >
+                    <PlanetVisual planet={p} size={46} />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:11,
+                        color:"#e0f7ff", marginBottom:4,
+                        whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.pl_name}</div>
+                      <div style={{ fontSize:11, color:"#4a9ab5" }}>{p.hostname} · {p.disc_year}</div>
+                    </div>
+                    <button onClick={e => { e.stopPropagation(); onFavorite(p.pl_name); }}
+                      className="fav-btn"
+                      style={{ background:"none", border:"none", cursor:"pointer",
+                        color:"#ffcc00", fontSize:18, padding:2 }}>★</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* ═══════════════════ App ═══════════════════ */
+    function App() {
+      const [allData,        setAllData]        = useState([]);
+      const [loading,        setLoading]        = useState(true);
+      const [loadProgress,   setLoadProgress]   = useState("Initialising uplink…");
+      const [filters,        setFilters]        = useState({ disc_year:"", discoverymethod:"", hostname:"", disc_facility:"" });
+      const [searchText,     setSearchText]     = useState("");
+      const [results,        setResults]        = useState(null);
+      const [queryError,     setQueryError]     = useState("");
+      const [sort,           setSort]           = useState({ col:null, dir:null });
+      const [selectedPlanet, setSelectedPlanet] = useState(null);
+      const [viewMode,       setViewMode]       = useState("table");
+      const [page,           setPage]           = useState(1);
+      const [showCharts,     setShowCharts]     = useState(false);
+      const [showFavorites,  setShowFavorites]  = useState(false);
+      const [presets,        setPresets]        = useState(() => {
+        try { return JSON.parse(localStorage.getItem("exo_presets") || "[]"); } catch(_){ return []; }
+      });
+      const [presetName,     setPresetName]     = useState("");
+      const [favorites,      setFavorites]      = useState(() => {
+        try { return new Set(JSON.parse(localStorage.getItem("exo_favs") || "[]")); } catch(_){ return new Set(); }
+      });
+
+      const PAGE_SIZE = 50;
+
+      /* Persist favorites */
+      useEffect(() => {
+        try { localStorage.setItem("exo_favs", JSON.stringify([...favorites])); } catch(_){}
+      }, [favorites]);
+
+      /* Persist presets */
+      useEffect(() => {
+        try { localStorage.setItem("exo_presets", JSON.stringify(presets)); } catch(_){}
+      }, [presets]);
+
+      /* Fetch data (with sessionStorage cache) */
       useEffect(() => {
         let cancelled = false;
         async function load() {
+          /* Check sessionStorage cache */
           try {
-            setLoadProgress("Contacting NASA Exoplanet Archive (trying 5 routes)…");
-            const res = await fetchWithCORSFallback(NASA_TAP_URL);
+            const cached = sessionStorage.getItem(CACHE_KEY);
+            if (cached) {
+              const rows = JSON.parse(cached);
+              if (rows?.length && !cancelled) { setAllData(rows); setLoading(false); return; }
+            }
+          } catch(_){}
 
+          try {
+            setLoadProgress("Contacting NASA Exoplanet Archive…");
+            const res = await fetchWithCORSFallback(NASA_TAP_URL);
             setLoadProgress("Receiving telemetry data…");
             const json = await res.json();
             if (cancelled) return;
+            setLoadProgress("Indexing catalogue…");
 
-            setLoadProgress("Indexing exoplanet catalogue…");
-
-            /* NASA TAP can return { columnNames, rows } or array-of-objects */
             let rows;
             if (Array.isArray(json) && json.length && typeof json[0] === "object" && !Array.isArray(json[0])) {
               rows = json;
             } else if (json.rows) {
               const cols = json.columnNames || json.column_names || [];
-              rows = json.rows.map(r => {
-                const obj = {};
-                cols.forEach((c, i) => { obj[c] = r[i]; });
-                return obj;
-              });
+              rows = json.rows.map(r => { const o={}; cols.forEach((c,i)=>{ o[c]=r[i]; }); return o; });
             } else {
-              rows = json;
+              rows = Array.isArray(json) ? json : [];
             }
 
+            try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(rows)); } catch(_){}
             setAllData(rows);
             setLoading(false);
-          } catch (e) {
+          } catch (_) {
             if (!cancelled) {
-              /* All proxies failed — load built-in sample catalogue so the app still works */
               setAllData(SAMPLE_DATA);
-              setLoadProgress("⚠ Live data unavailable – showing sample catalogue (30 planets)");
+              setLoadProgress("⚠ Live data unavailable — showing sample catalogue");
               setLoading(false);
             }
           }
@@ -452,168 +885,318 @@
         return () => { cancelled = true; };
       }, []);
 
-      /* Build dropdown options — single O(n) pass */
+      /* Build unique option lists */
       const options = useMemo(() => {
         const sets = { disc_year: new Set(), discoverymethod: new Set(), hostname: new Set(), disc_facility: new Set() };
-        for (const row of allData) {
-          if (row.disc_year)       sets.disc_year.add(String(row.disc_year));
-          if (row.discoverymethod) sets.discoverymethod.add(row.discoverymethod);
-          if (row.hostname)        sets.hostname.add(row.hostname);
-          if (row.disc_facility)   sets.disc_facility.add(row.disc_facility);
+        for (const r of allData) {
+          if (r.disc_year)       sets.disc_year.add(String(r.disc_year));
+          if (r.discoverymethod) sets.discoverymethod.add(r.discoverymethod);
+          if (r.hostname)        sets.hostname.add(r.hostname);
+          if (r.disc_facility)   sets.disc_facility.add(r.disc_facility);
         }
         return {
-          disc_year:       [...sets.disc_year].sort((a, b) => b - a),
+          disc_year:       [...sets.disc_year].sort((a,b)=>b-a),
           discoverymethod: [...sets.discoverymethod].sort(),
           hostname:        [...sets.hostname].sort(),
           disc_facility:   [...sets.disc_facility].sort(),
         };
       }, [allData]);
 
-      const handleFilter = useCallback((k, v) => setFilters(f => ({ ...f, [k]: v })), []);
+      const handleFilter   = useCallback((k, v) => setFilters(f => ({ ...f, [k]: v })), []);
 
-      /* O(n) search */
-      const handleSearch = useCallback(() => {
-        const active = Object.entries(filters).filter(([, v]) => v);
-        if (!active.length) { setQueryError("Select at least one filter to search."); return; }
+      const handleSearch   = useCallback(() => {
+        const active = Object.entries(filters).filter(([,v]) => v);
+        if (!active.length && !searchText.trim()) {
+          setQueryError("Enter a planet name or choose at least one filter.");
+          return;
+        }
         setQueryError("");
-        setResults(allData.filter(row => active.every(([k, v]) => String(row[k] ?? "") === v)));
-        setSort({ col: null, dir: null });
-      }, [filters, allData]);
+        setPage(1);
+        setResults(allData.filter(row => {
+          if (searchText.trim() &&
+              !String(row.pl_name||"").toLowerCase().includes(searchText.trim().toLowerCase())) return false;
+          return active.every(([k, v]) => String(row[k]??"") === v);
+        }));
+        setSort({ col:null, dir:null });
+      }, [filters, searchText, allData]);
 
       const handleClear = useCallback(() => {
         setFilters({ disc_year:"", discoverymethod:"", hostname:"", disc_facility:"" });
-        setResults(null);
-        setQueryError("");
-        setSort({ col: null, dir: null });
+        setSearchText(""); setResults(null); setQueryError("");
+        setSort({ col:null, dir:null }); setPage(1);
       }, []);
 
-      /* Cycle: none → asc → desc → none */
       const handleSort = useCallback(col => {
         setSort(s => {
-          if (s.col !== col)   return { col, dir: "asc"  };
-          if (s.dir === "asc") return { col, dir: "desc" };
-          return { col: null, dir: null };
+          if (s.col !== col)    return { col, dir:"asc"  };
+          if (s.dir === "asc")  return { col, dir:"desc" };
+          return { col:null, dir:null };
         });
       }, []);
 
+      const toggleFavorite = useCallback(name => {
+        setFavorites(prev => {
+          const next = new Set(prev);
+          next.has(name) ? next.delete(name) : next.add(name);
+          return next;
+        });
+      }, []);
+
+      const handleSurpriseMe = useCallback(() => {
+        if (!allData.length) return;
+        setSelectedPlanet(allData[Math.floor(Math.random() * allData.length)]);
+      }, [allData]);
+
+      const savePreset = useCallback(() => {
+        const name = presetName.trim(); if (!name) return;
+        setPresets(p => [...p.filter(x => x.name !== name), { name, filters }]);
+        setPresetName("");
+      }, [presetName, filters]);
+
+      const applyPreset  = useCallback(p => setFilters(p.filters), []);
+      const deletePreset = useCallback(n => setPresets(p => p.filter(x => x.name !== n)), []);
+
+      /* Sorted + paged results */
       const sortedResults = useMemo(() => {
         if (!results) return null;
         if (!sort.col) return results;
         return [...results].sort((a, b) => {
-          const va = a[sort.col] ?? "", vb = b[sort.col] ?? "";
-          const cmp = (isNaN(va) || isNaN(vb))
-            ? String(va).localeCompare(String(vb))
-            : Number(va) - Number(vb);
+          const va = a[sort.col]??"", vb = b[sort.col]??"";
+          const cmp = (!isNaN(va) && !isNaN(vb)) ? Number(va)-Number(vb) : String(va).localeCompare(String(vb));
           return sort.dir === "asc" ? cmp : -cmp;
         });
       }, [results, sort]);
 
-      /* ── Shared button hover helpers ── */
-      const btnPrimaryHover   = e => { e.target.style.boxShadow = "0 0 30px #00e5ff55"; e.target.style.transform = "translateY(-1px)"; };
-      const btnPrimaryUnhover = e => { e.target.style.boxShadow = "0 0 20px #00e5ff22"; e.target.style.transform = ""; };
-      const btnSecondHover    = e => { e.target.style.borderColor = "#00e5ff66"; e.target.style.color = "#00e5ff"; };
-      const btnSecondUnhover  = e => { e.target.style.borderColor = "#00e5ff33"; e.target.style.color = "#4a9ab5"; };
-      const selectFocus       = e => { e.target.style.borderColor = "#00e5ff88"; };
-      const selectBlur        = e => { e.target.style.borderColor = "#00e5ff33"; };
-      const rowEnter          = e => { e.currentTarget.style.background = "rgba(0,229,255,0.04)"; };
-      const rowLeave          = e => { e.currentTarget.style.background = ""; };
-      const linkEnter         = e => { e.target.style.color = "#80f0ff"; e.target.style.borderColor = "#80f0ff"; };
-      const linkLeave         = e => { e.target.style.color = "#00e5ff"; e.target.style.borderColor = "#00e5ff55"; };
+      const pagedResults = useMemo(() =>
+        sortedResults ? sortedResults.slice(0, page * PAGE_SIZE) : null,
+      [sortedResults, page]);
 
+      /* Summary stats */
+      const statsData = useMemo(() => {
+        if (!allData.length) return null;
+        const methods = new Set(allData.map(r => r.discoverymethod).filter(Boolean));
+        const years   = allData.map(r => Number(r.disc_year)).filter(Boolean);
+        return {
+          total:    allData.length.toLocaleString(),
+          methods:  methods.size,
+          earliest: years.length ? Math.min(...years) : "—",
+          latest:   years.length ? Math.max(...years) : "—",
+        };
+      }, [allData]);
+
+      /* ── Render ── */
       return (
         <>
-          {/* Background */}
-          <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#010810 0%,#020b18 50%,#010d1a 100%)", position:"relative", overflow:"hidden" }}>
+          <div style={{ minHeight:"100vh",
+            background:"linear-gradient(158deg,#010810 0%,#020c1c 55%,#010c18 100%)",
+            position:"relative" }}>
+
             <StarField />
 
             {/* Scanline */}
             <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:1, overflow:"hidden" }}>
               <div style={{ position:"absolute", left:0, right:0, height:"3px",
-                background:"linear-gradient(transparent,rgba(0,229,255,0.06),transparent)",
-                animation:"scanline 8s linear infinite" }} />
+                background:"linear-gradient(transparent,rgba(0,229,255,0.045),transparent)",
+                animation:"scanline 10s linear infinite" }} />
             </div>
 
-            {/* Content */}
-            <div style={{ position:"relative", zIndex:2, maxWidth:1100, margin:"0 auto", padding:"0 20px 60px" }}>
+            {/* ── Main content ── */}
+            <div style={{ position:"relative", zIndex:2, maxWidth:1160, margin:"0 auto", padding:"0 18px 90px" }}>
 
               {/* ── Header ── */}
-              <header style={{ textAlign:"center", padding:"48px 0 32px", animation:"fadeUp 0.8s ease" }}>
-                <div style={{ display:"inline-flex", alignItems:"center", gap:14, marginBottom:12 }}>
-                  <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-                    <circle cx="18" cy="18" r="7" fill="#00e5ff" opacity="0.9"/>
-                    <ellipse cx="18" cy="18" rx="17" ry="6" stroke="#00e5ff" strokeWidth="1.2" fill="none" opacity="0.5"/>
-                    <circle cx="18" cy="18" r="17" stroke="#00e5ff22" strokeWidth="1"/>
-                    <circle cx="29" cy="11" r="2" fill="#00e5ff" opacity="0.7"/>
+              <header style={{ textAlign:"center", padding:"54px 0 26px", animation:"fadeUp 0.9s ease" }}>
+                <div style={{ display:"inline-flex", alignItems:"center", gap:16, marginBottom:10 }}>
+                  {/* SVG logo */}
+                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="20" r="8" fill="#00e5ff" opacity="0.92"/>
+                    <ellipse cx="20" cy="20" rx="19" ry="7" stroke="#00e5ff" strokeWidth="1.1" fill="none" opacity="0.5"/>
+                    <circle cx="20" cy="20" r="19" stroke="rgba(0,229,255,0.14)" strokeWidth="0.8"/>
+                    <circle cx="32" cy="12" r="2.5" fill="#00e5ff" opacity="0.65"/>
                   </svg>
-                  <h1 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:"clamp(18px,4vw,32px)", fontWeight:900,
-                    letterSpacing:"0.12em", color:"#e0f7ff", textShadow:"0 0 30px #00e5ff88" }}>
-                    NASA EXOPLANET ARCHIVE
+                  <h1 style={{ fontFamily:"'Orbitron',sans-serif",
+                    fontSize:"clamp(17px,4vw,32px)", fontWeight:900,
+                    letterSpacing:"0.1em", color:"#e0f7ff",
+                    textShadow:"0 0 40px #00e5ff70" }}>
+                    NASA EXOPLANET EXPLORER
                   </h1>
                 </div>
-                <p style={{ color:"#4a9ab5", fontSize:13, letterSpacing:"0.2em", textTransform:"uppercase" }}>
-                  Confirmed Exoplanet Query Interface · TAP Service
+                <p style={{ color:"#3a7a8a", fontSize:11, letterSpacing:"0.24em",
+                  textTransform:"uppercase", marginBottom:22 }}>
+                  Confirmed Exoplanet Catalogue · Live NASA TAP Service
                 </p>
+
+                {/* Action buttons */}
+                {!loading && statsData && (
+                  <div className="header-btns" style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
+                    {[
+                      {
+                        label:"🎲 Surprise Me", onClick: handleSurpriseMe,
+                        bg:"linear-gradient(135deg,#7c3aed,#4c1d95)",
+                        border:"#a855f766", color:"#e9d5ff",
+                        shadow:"0 0 22px #7c3aed22",
+                      },
+                      {
+                        label:`📊 Charts${showCharts?" ▲":" ▼"}`, onClick:()=>setShowCharts(v=>!v),
+                        bg: showCharts ? "rgba(168,85,247,0.18)" : "transparent",
+                        border: showCharts ? "#a855f766" : "#00e5ff22",
+                        color: showCharts ? "#c084fc" : "#4a9ab5",
+                      },
+                      {
+                        label:`★ Favourites${favorites.size ? ` (${favorites.size})` : ""}`,
+                        onClick:()=>setShowFavorites(true),
+                        bg: favorites.size ? "rgba(255,204,0,0.08)" : "transparent",
+                        border: favorites.size ? "#ffcc0044" : "#00e5ff22",
+                        color: favorites.size ? "#ffcc00" : "#4a9ab5",
+                      },
+                    ].map(({ label, onClick, bg, border, color, shadow }) => (
+                      <button key={label} onClick={onClick} className="btn-primary" style={{
+                        padding:"9px 18px", background:bg,
+                        border:`1px solid ${border}`, borderRadius:8,
+                        color, fontFamily:"'Orbitron',sans-serif", fontSize:9,
+                        letterSpacing:"0.16em", cursor:"pointer",
+                        textTransform:"uppercase",
+                        boxShadow: shadow || "none", transition:"all 0.22s",
+                      }}>{label}</button>
+                    ))}
+                  </div>
+                )}
               </header>
 
-              {/* ── Loading ── */}
+              {/* ── Summary stats bar ── */}
+              {!loading && statsData && (
+                <div className="stats-grid" style={{ display:"grid",
+                  gridTemplateColumns:"repeat(4,1fr)", gap:12,
+                  marginBottom:22, animation:"fadeUp 0.6s ease 0.1s both" }}>
+                  {[
+                    { icon:"🪐", label:"Total Planets",    value:statsData.total   },
+                    { icon:"🔭", label:"Methods",          value:statsData.methods },
+                    { icon:"📅", label:"First Confirmed",  value:statsData.earliest},
+                    { icon:"✨", label:"Latest Year",      value:statsData.latest  },
+                  ].map(({ icon, label, value }) => (
+                    <div key={label} style={{
+                      background:"rgba(0,18,36,0.6)", border:"1px solid rgba(0,229,255,0.1)",
+                      borderRadius:10, padding:"14px 16px", backdropFilter:"blur(8px)",
+                    }}>
+                      <div style={{ fontSize:20, marginBottom:5 }}>{icon}</div>
+                      <div style={{ fontSize:9, color:"#2a6070", letterSpacing:"0.14em",
+                        textTransform:"uppercase", marginBottom:4,
+                        fontFamily:"'Orbitron',sans-serif" }}>{label}</div>
+                      <div style={{ color:"#e0f7ff", fontSize:15, fontWeight:700,
+                        fontFamily:"'Orbitron',sans-serif" }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Loading state ── */}
               {loading && (
-                <div style={{ textAlign:"center", padding:"60px 20px", animation:"fadeUp 0.5s ease" }}>
-                  <div style={{ width:48, height:48, border:"3px solid #00e5ff22", borderTop:"3px solid #00e5ff",
-                    borderRadius:"50%", margin:"0 auto 24px", animation:"spin 1s linear infinite" }} />
-                  <p style={{ color:"#00e5ff", fontSize:13, letterSpacing:"0.2em" }}>{loadProgress}</p>
+                <div style={{ textAlign:"center", padding:"80px 20px", animation:"fadeUp 0.5s ease" }}>
+                  <div style={{ display:"flex", justifyContent:"center", marginBottom:30 }}>
+                    <div style={{ position:"relative", width:80, height:80 }}>
+                      <div style={{ position:"absolute", inset:0, borderRadius:"50%",
+                        border:"2px solid rgba(0,229,255,0.1)",
+                        animation:"spin 3s linear infinite" }} />
+                      <div style={{ position:"absolute", inset:8, borderRadius:"50%",
+                        border:"2px solid rgba(0,229,255,0.18)",
+                        animation:"spin 2s linear infinite reverse" }} />
+                      <div style={{ position:"absolute", inset:16, borderRadius:"50%",
+                        background:"radial-gradient(circle at 35% 35%, #1a6a8a, #030e20)",
+                        boxShadow:"0 0 22px #00e5ff44" }} />
+                    </div>
+                  </div>
+                  <p style={{ color:"#00e5ff", fontSize:11, letterSpacing:"0.24em",
+                    textTransform:"uppercase", marginBottom:32 }}>{loadProgress}</p>
+                  <div style={{ maxWidth:560, margin:"0 auto", display:"flex", flexDirection:"column", gap:10 }}>
+                    {[...Array(6)].map((_,i) => (
+                      <div key={i} className="skeleton" style={{ height:13,
+                        width:`${65+(i*13)%35}%`, margin:"0 auto",
+                        opacity:0.65 - i*0.08 }} />
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* ── Load error ── */}
-              {loadError && (
-                <div style={{ background:"#1a0a0a", border:"1px solid #ff4444", borderRadius:8,
-                  padding:"20px 24px", color:"#ff8888", fontSize:13, margin:"20px 0" }}>
-                  ⚠ Connection failed: {loadError}. Check network or try refreshing.
-                </div>
-              )}
+              {/* ── Main UI (after load) ── */}
+              {!loading && (
+                <div style={{ animation:"fadeUp 0.5s ease 0.12s both" }}>
 
-              {/* ── Main UI ── */}
-              {!loading && !loadError && (
-                <div style={{ animation:"fadeUp 0.6s ease 0.1s both" }}>
+                  {/* Charts panel */}
+                  {showCharts && <ChartsPanel allData={allData} />}
 
-                  {/* Query panel */}
-                  <section style={{ background:"linear-gradient(135deg,rgba(0,30,50,0.85),rgba(0,15,30,0.9))",
-                    border:"1px solid #00e5ff22", borderRadius:12, padding:"28px 28px 24px", marginBottom:24,
-                    backdropFilter:"blur(8px)", boxShadow:"0 4px 40px #00e5ff0a, inset 0 1px 0 #00e5ff18" }}>
-
-                    {/* Section header */}
-                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:22 }}>
+                  {/* ── Query panel ── */}
+                  <section style={{
+                    background:"linear-gradient(138deg,rgba(0,22,46,0.82),rgba(0,11,26,0.9))",
+                    border:"1px solid rgba(0,229,255,0.17)",
+                    borderRadius:14, padding:"26px 26px 22px",
+                    marginBottom:20, backdropFilter:"blur(10px)",
+                    boxShadow:"0 4px 44px rgba(0,229,255,0.04), inset 0 1px 0 rgba(0,229,255,0.13)",
+                  }}>
+                    {/* Section title */}
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
                       <div style={{ width:6, height:6, borderRadius:"50%", background:"#00e5ff",
                         boxShadow:"0 0 8px #00e5ff", animation:"pulse 2s ease infinite" }} />
-                      <h2 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:11, letterSpacing:"0.25em",
-                        color:"#00e5ff", fontWeight:600, textTransform:"uppercase" }}>
+                      <h2 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:10,
+                        letterSpacing:"0.26em", color:"#00e5ff", textTransform:"uppercase" }}>
                         Query Parameters
                       </h2>
-                      <div style={{ flex:1, height:"1px", background:"linear-gradient(90deg,#00e5ff33,transparent)" }} />
+                      <div style={{ flex:1, height:1,
+                        background:"linear-gradient(90deg,rgba(0,229,255,0.22),transparent)" }} />
                     </div>
 
-                    {/* Dropdowns */}
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:16, marginBottom:20 }}>
+                    {/* Planet name search */}
+                    <div style={{ marginBottom:16 }}>
+                      <label style={{ display:"block", fontSize:9, color:"#4a9ab5",
+                        letterSpacing:"0.16em", textTransform:"uppercase",
+                        marginBottom:7, fontFamily:"'Orbitron',sans-serif" }}>
+                        Search Planet Name
+                      </label>
+                      <div style={{ position:"relative" }}>
+                        <span style={{ position:"absolute", left:12, top:"50%",
+                          transform:"translateY(-50%)", color:"#2a5a6a", fontSize:14,
+                          pointerEvents:"none" }}>🔍</span>
+                        <input type="text" value={searchText}
+                          onChange={e => setSearchText(e.target.value)}
+                          onKeyDown={e => { if(e.key==="Enter") handleSearch(); }}
+                          placeholder="e.g. Kepler-452b, TRAPPIST-1e…"
+                          style={{
+                            width:"100%", paddingLeft:36, paddingRight:14,
+                            paddingTop:9, paddingBottom:9,
+                            background:"rgba(0,13,32,0.85)",
+                            border:"1px solid rgba(0,229,255,0.22)", borderRadius:7,
+                            color:"#e0f7ff", fontSize:13,
+                            fontFamily:"'Share Tech Mono',monospace", outline:"none",
+                            transition:"border-color 0.2s",
+                          }}
+                          onFocus={e => e.target.style.borderColor = "rgba(0,229,255,0.58)"}
+                          onBlur={e  => e.target.style.borderColor = "rgba(0,229,255,0.22)"}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Filter dropdowns */}
+                    <div className="filters-grid" style={{
+                      display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",
+                      gap:14, marginBottom:16 }}>
                       {FILTERS.map(({ key, label }) => (
                         <div key={key}>
-                          <label style={{ display:"block", fontSize:10, color:"#4a9ab5",
-                            letterSpacing:"0.18em", textTransform:"uppercase", marginBottom:7 }}>
-                            {label}
-                          </label>
-                          <select
-                            value={filters[key]}
-                            onChange={e => handleFilter(key, e.target.value)}
-                            onFocus={selectFocus}
-                            onBlur={selectBlur}
-                            style={{ width:"100%", background:"rgba(0,20,40,0.8)",
-                              border:"1px solid #00e5ff33", borderRadius:6, padding:"9px 12px",
-                              color: filters[key] ? "#e0f7ff" : "#3a6a7a",
+                          <label style={{ display:"block", fontSize:9, color:"#4a9ab5",
+                            letterSpacing:"0.16em", textTransform:"uppercase",
+                            marginBottom:6, fontFamily:"'Orbitron',sans-serif" }}>{label}</label>
+                          <select value={filters[key]} onChange={e => handleFilter(key, e.target.value)}
+                            onFocus={e => e.target.style.borderColor = "rgba(0,229,255,0.58)"}
+                            onBlur={e  => e.target.style.borderColor = "rgba(0,229,255,0.22)"}
+                            style={{
+                              width:"100%",
+                              background:"rgba(0,13,32,0.85)",
+                              border:"1px solid rgba(0,229,255,0.22)",
+                              borderRadius:7, padding:"9px 12px",
+                              color: filters[key] ? "#e0f7ff" : "#2a5a6a",
                               fontSize:13, fontFamily:"'Share Tech Mono',monospace",
                               outline:"none", cursor:"pointer", appearance:"none",
-                              backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300e5ff44'/%3E%3C/svg%3E\")",
+                              backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300e5ff44'/%3E%3C/svg%3E\")",
                               backgroundRepeat:"no-repeat", backgroundPosition:"right 12px center",
-                              transition:"border-color 0.2s" }}
-                          >
+                              transition:"border-color 0.2s",
+                            }}>
                             <option value="">— Any —</option>
                             {options[key].map(v => <option key={v} value={v}>{v}</option>)}
                           </select>
@@ -621,153 +1204,278 @@
                       ))}
                     </div>
 
-                    {/* Validation error */}
-                    {queryError && (
-                      <p style={{ color:"#ff7b7b", fontSize:12, marginBottom:14, letterSpacing:"0.1em" }}>
-                        ⚠ {queryError}
-                      </p>
+                    {/* Presets */}
+                    {presets.length > 0 && (
+                      <div style={{ marginBottom:14 }}>
+                        <div style={{ fontSize:9, color:"#2a5a6a", letterSpacing:"0.16em",
+                          textTransform:"uppercase", marginBottom:8,
+                          fontFamily:"'Orbitron',sans-serif" }}>Saved Presets</div>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                          {presets.map(p => (
+                            <div key={p.name} style={{ display:"flex", alignItems:"center",
+                              background:"rgba(0,229,255,0.06)", border:"1px solid rgba(0,229,255,0.18)",
+                              borderRadius:6, overflow:"hidden" }}>
+                              <button onClick={() => applyPreset(p)} style={{
+                                background:"none", border:"none", color:"#00e5ff",
+                                fontSize:11, cursor:"pointer", padding:"5px 11px",
+                                fontFamily:"'Share Tech Mono',monospace" }}>{p.name}</button>
+                              <button onClick={() => deletePreset(p.name)} style={{
+                                background:"none", border:"none",
+                                borderLeft:"1px solid rgba(0,229,255,0.14)",
+                                color:"#ff7b7b", fontSize:12, cursor:"pointer",
+                                padding:"5px 8px" }}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
 
-                    {/* Action buttons */}
-                    <div style={{ display:"flex", gap:12 }}>
-                      <button
-                        onClick={handleSearch}
-                        onMouseEnter={btnPrimaryHover}
-                        onMouseLeave={btnPrimaryUnhover}
-                        style={{ flex:1, padding:"11px 20px",
-                          background:"linear-gradient(135deg,#00b4cc,#007a9a)",
-                          border:"1px solid #00e5ff66", borderRadius:7, color:"#fff",
-                          fontFamily:"'Orbitron',sans-serif", fontSize:11, fontWeight:600,
-                          letterSpacing:"0.2em", cursor:"pointer", textTransform:"uppercase",
-                          boxShadow:"0 0 20px #00e5ff22", transition:"all 0.2s" }}>
-                        ⬡ Execute Query
-                      </button>
-                      <button
-                        onClick={handleClear}
-                        onMouseEnter={btnSecondHover}
-                        onMouseLeave={btnSecondUnhover}
-                        style={{ padding:"11px 24px", background:"transparent",
-                          border:"1px solid #00e5ff33", borderRadius:7, color:"#4a9ab5",
-                          fontFamily:"'Orbitron',sans-serif", fontSize:11, fontWeight:600,
-                          letterSpacing:"0.2em", cursor:"pointer", textTransform:"uppercase",
-                          transition:"all 0.2s" }}>
-                        Clear
-                      </button>
+                    {queryError && (
+                      <p style={{ color:"#ff7b7b", fontSize:12, marginBottom:14,
+                        letterSpacing:"0.1em" }}>⚠ {queryError}</p>
+                    )}
+
+                    {/* Buttons row */}
+                    <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+                      <button onClick={handleSearch} className="btn-primary" style={{
+                        flex:1, minWidth:140, padding:"11px 20px",
+                        background:"linear-gradient(135deg,#00b4cc,#007a9a)",
+                        border:"1px solid rgba(0,229,255,0.48)", borderRadius:8,
+                        color:"#fff", fontFamily:"'Orbitron',sans-serif",
+                        fontSize:10, fontWeight:600, letterSpacing:"0.22em",
+                        cursor:"pointer", textTransform:"uppercase",
+                        boxShadow:"0 0 22px rgba(0,229,255,0.14)",
+                      }}>⬡ Execute Query</button>
+
+                      <button onClick={handleClear} className="btn-secondary" style={{
+                        padding:"11px 20px", background:"transparent",
+                        border:"1px solid rgba(0,229,255,0.18)", borderRadius:8,
+                        color:"#4a9ab5", fontFamily:"'Orbitron',sans-serif",
+                        fontSize:10, fontWeight:600, letterSpacing:"0.2em",
+                        cursor:"pointer", textTransform:"uppercase",
+                      }}>Clear</button>
+
+                      {/* Save preset */}
+                      <div style={{ display:"flex", border:"1px solid rgba(0,229,255,0.18)",
+                        borderRadius:8, overflow:"hidden" }}>
+                        <input type="text" value={presetName}
+                          onChange={e => setPresetName(e.target.value)}
+                          onKeyDown={e => { if(e.key==="Enter") savePreset(); }}
+                          placeholder="Preset name…"
+                          style={{
+                            background:"rgba(0,13,32,0.8)", border:"none", outline:"none",
+                            color:"#e0f7ff", padding:"8px 12px", fontSize:12,
+                            fontFamily:"'Share Tech Mono',monospace", width:120,
+                          }}
+                        />
+                        <button onClick={savePreset} style={{
+                          background:"rgba(0,229,255,0.07)", border:"none",
+                          borderLeft:"1px solid rgba(0,229,255,0.18)",
+                          color:"#00e5ff", padding:"8px 12px", cursor:"pointer",
+                          fontSize:10, fontFamily:"'Orbitron',sans-serif",
+                          letterSpacing:"0.12em",
+                        }}>Save</button>
+                      </div>
                     </div>
                   </section>
 
                   {/* ── Results ── */}
                   {results !== null && (
-                    <section style={{ animation:"fadeUp 0.4s ease" }}>
-
-                      {/* Result count bar */}
-                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-                        <div style={{ width:6, height:6, borderRadius:"50%",
-                          background: results.length ? "#00ff9d" : "#ff7b7b",
-                          boxShadow: `0 0 8px ${results.length ? "#00ff9d" : "#ff7b7b"}` }} />
-                        <span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:10, letterSpacing:"0.22em",
-                          color: results.length ? "#00ff9d" : "#ff7b7b", textTransform:"uppercase" }}>
-                          {results.length.toLocaleString()} RECORD{results.length !== 1 ? "S" : ""} FOUND
-                        </span>
-                        <div style={{ flex:1, height:"1px",
-                          background:`linear-gradient(90deg,${results.length ? "#00ff9d33" : "#ff7b7b33"},transparent)` }} />
+                    <section style={{ animation:"fadeUp 0.35s ease" }}>
+                      {/* Result bar + view toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:12,
+                        marginBottom:16, flexWrap:"wrap" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          <div style={{
+                            width:6, height:6, borderRadius:"50%",
+                            background: results.length ? "#00ff9d" : "#ff7b7b",
+                            boxShadow:`0 0 8px ${results.length ? "#00ff9d":"#ff7b7b"}`,
+                          }} />
+                          <span style={{ fontFamily:"'Orbitron',sans-serif", fontSize:10,
+                            letterSpacing:"0.2em", textTransform:"uppercase",
+                            color: results.length ? "#00ff9d" : "#ff7b7b" }}>
+                            {results.length.toLocaleString()} RECORD{results.length !== 1 ? "S" : ""} FOUND
+                          </span>
+                        </div>
+                        <div style={{ flex:1, height:1,
+                          background:`linear-gradient(90deg,${results.length?"#00ff9d22":"#ff7b7b22"},transparent)` }} />
+                        {/* View toggle */}
+                        <div style={{ display:"flex", background:"rgba(0,12,28,0.75)",
+                          border:"1px solid rgba(0,229,255,0.14)", borderRadius:8, overflow:"hidden" }}>
+                          {[{ mode:"table", icon:"⊟", lbl:"Table" }, { mode:"card", icon:"⊞", lbl:"Cards" }]
+                            .map(({ mode, icon, lbl }) => (
+                            <button key={mode} onClick={() => { setViewMode(mode); setPage(1); }} style={{
+                              padding:"7px 14px",
+                              background: viewMode === mode ? "rgba(0,229,255,0.13)" : "transparent",
+                              border:"none",
+                              color: viewMode === mode ? "#00e5ff" : "#4a9ab5",
+                              fontFamily:"'Orbitron',sans-serif", fontSize:9,
+                              letterSpacing:"0.14em", cursor:"pointer",
+                              textTransform:"uppercase", transition:"all 0.18s",
+                            }}>{icon} {lbl}</button>
+                          ))}
+                        </div>
                       </div>
 
                       {results.length === 0 ? (
-                        <div style={{ textAlign:"center", padding:"40px 20px",
-                          background:"rgba(0,10,20,0.6)", border:"1px solid #00e5ff11",
-                          borderRadius:10, color:"#3a6a7a", fontSize:13, letterSpacing:"0.1em" }}>
-                          No exoplanets match the selected parameters.
+                        <div style={{ textAlign:"center", padding:"52px 20px",
+                          background:"rgba(0,9,20,0.65)", border:"1px solid rgba(0,229,255,0.07)",
+                          borderRadius:12, color:"#1e4455", fontSize:13, letterSpacing:"0.1em" }}>
+                          🌑 No exoplanets match the selected parameters.
                         </div>
-                      ) : (
-                        <div style={{ background:"linear-gradient(135deg,rgba(0,20,35,0.9),rgba(0,10,20,0.95))",
-                          border:"1px solid #00e5ff1a", borderRadius:12, overflow:"hidden",
-                          boxShadow:"0 4px 40px #00000066" }}>
+
+                      ) : viewMode === "table" ? (
+                        /* ── Table view ── */
+                        <div style={{
+                          background:"linear-gradient(138deg,rgba(0,16,30,0.92),rgba(0,7,17,0.97))",
+                          border:"1px solid rgba(0,229,255,0.1)", borderRadius:13,
+                          overflow:"hidden", boxShadow:"0 4px 44px rgba(0,0,0,0.55)",
+                        }}>
                           <div style={{ overflowX:"auto" }}>
                             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
                               <thead>
-                                <tr style={{ background:"rgba(0,40,60,0.6)", borderBottom:"1px solid #00e5ff22" }}>
+                                <tr style={{ background:"rgba(0,32,52,0.7)",
+                                  borderBottom:"1px solid rgba(0,229,255,0.14)" }}>
                                   {COLS.map(col => (
-                                    <th
-                                      key={col.key}
-                                      onClick={() => handleSort(col.key)}
-                                      style={{ padding:"13px 16px", textAlign:"left",
-                                        fontFamily:"'Orbitron',sans-serif", fontSize:9, fontWeight:600,
-                                        letterSpacing:"0.2em",
-                                        color: sort.col === col.key ? "#00e5ff" : "#3a7a8a",
-                                        textTransform:"uppercase", cursor:"pointer",
-                                        whiteSpace:"nowrap", userSelect:"none", transition:"color 0.2s" }}>
-                                      {col.label}
-                                      <SortIcon dir={sort.col === col.key ? sort.dir : null} />
+                                    <th key={col.key} onClick={() => handleSort(col.key)} style={{
+                                      padding:"13px 16px", textAlign:"left",
+                                      fontFamily:"'Orbitron',sans-serif", fontSize:9, fontWeight:600,
+                                      letterSpacing:"0.2em", textTransform:"uppercase",
+                                      color: sort.col === col.key ? "#00e5ff" : "#2e788a",
+                                      cursor:"pointer", whiteSpace:"nowrap",
+                                      userSelect:"none", transition:"color 0.18s",
+                                    }}>
+                                      {col.label}<SortIcon dir={sort.col === col.key ? sort.dir : null} />
                                     </th>
                                   ))}
+                                  <th style={{ padding:"13px 16px", width:38 }} />
                                 </tr>
                               </thead>
                               <tbody>
-                                {sortedResults.map((row, i) => (
-                                  <tr key={i} style={{ borderBottom:"1px solid #00e5ff0a", transition:"background 0.15s" }}
-                                    onMouseEnter={rowEnter} onMouseLeave={rowLeave}>
+                                {pagedResults.map((row, i) => (
+                                  <tr key={i} style={{ borderBottom:"1px solid rgba(0,229,255,0.045)" }}>
                                     <td style={{ padding:"10px 16px" }}>
-                                      <button
-                                        onClick={() => setSelectedPlanet(row)}
-                                        onMouseEnter={e => { e.currentTarget.style.color="#00e5ff"; e.currentTarget.style.borderColor="#00e5ff66"; }}
-                                        onMouseLeave={e => { e.currentTarget.style.color="#a0d8ef"; e.currentTarget.style.borderColor="#a0d8ef33"; }}
-                                        style={{ background:"none", border:"none", borderBottom:"1px dotted #a0d8ef33",
-                                          color:"#a0d8ef", fontWeight:600,
-                                          fontFamily:"'Share Tech Mono',monospace",
-                                          fontSize:13, cursor:"pointer", padding:0,
-                                          textAlign:"left", transition:"color 0.2s, border-color 0.2s" }}>
-                                        {row.pl_name ?? "—"}
-                                      </button>
+                                      <button onClick={() => setSelectedPlanet(row)} style={{
+                                        background:"none", border:"none",
+                                        borderBottom:"1px dotted rgba(160,216,239,0.22)",
+                                        color:"#a0d8ef", fontWeight:600,
+                                        fontFamily:"'Share Tech Mono',monospace",
+                                        fontSize:13, cursor:"pointer", padding:0,
+                                        textAlign:"left", transition:"color 0.18s, border-color 0.18s",
+                                      }}
+                                        onMouseEnter={e => { e.currentTarget.style.color="#00e5ff"; e.currentTarget.style.borderColor="rgba(0,229,255,0.5)"; }}
+                                        onMouseLeave={e => { e.currentTarget.style.color="#a0d8ef"; e.currentTarget.style.borderColor="rgba(160,216,239,0.22)"; }}
+                                      >{row.pl_name ?? "—"}</button>
                                     </td>
                                     <td style={{ padding:"10px 16px" }}>
                                       {row.hostname
-                                        ? <a
-                                            href={`https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(row.hostname)}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onMouseEnter={linkEnter}
-                                            onMouseLeave={linkLeave}
+                                        ? <a href={`https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(row.hostname)}`}
+                                            target="_blank" rel="noopener noreferrer"
                                             style={{ color:"#00e5ff", textDecoration:"none",
-                                              borderBottom:"1px dotted #00e5ff55",
-                                              transition:"color 0.2s, border-color 0.2s" }}>
-                                            {row.hostname}
-                                          </a>
+                                              borderBottom:"1px dotted rgba(0,229,255,0.32)", transition:"color 0.18s" }}
+                                            onMouseEnter={e => e.target.style.color="#80f0ff"}
+                                            onMouseLeave={e => e.target.style.color="#00e5ff"}
+                                          >{row.hostname}</a>
                                         : "—"}
                                     </td>
                                     <td style={{ padding:"10px 16px", color:"#7ab8c8" }}>{row.disc_year ?? "—"}</td>
-                                    <td style={{ padding:"10px 16px", color:"#7ab8c8" }}>{row.discoverymethod ?? "—"}</td>
-                                    <td style={{ padding:"10px 16px", color:"#5a9aaa", fontSize:12 }}>{row.disc_facility ?? "—"}</td>
+                                    <td style={{ padding:"10px 16px" }}>
+                                      <span style={{ color: METHOD_COLORS[row.discoverymethod] || "#7ab8c8", fontSize:12 }}>
+                                        {row.discoverymethod ?? "—"}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding:"10px 16px", color:"#3e7a8a", fontSize:12 }}>{row.disc_facility ?? "—"}</td>
+                                    <td style={{ padding:"10px 16px" }}>
+                                      <button onClick={() => toggleFavorite(row.pl_name)}
+                                        className="fav-btn" style={{
+                                          background:"none", border:"none", cursor:"pointer",
+                                          fontSize:16, color: favorites.has(row.pl_name) ? "#ffcc00" : "#1e3a48",
+                                        }}>
+                                        {favorites.has(row.pl_name) ? "★" : "☆"}
+                                      </button>
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                           </div>
-                          <div style={{ padding:"10px 16px", borderTop:"1px solid #00e5ff0a",
-                            color:"#2a5a6a", fontSize:11, letterSpacing:"0.1em" }}>
-                            Showing {sortedResults.length.toLocaleString()} of {allData.length.toLocaleString()} catalogued
-                            exoplanets · Click planet name for details · Click host star to view NASA overview
+                          {/* Footer */}
+                          <div style={{ padding:"11px 16px", borderTop:"1px solid rgba(0,229,255,0.05)",
+                            display:"flex", alignItems:"center", justifyContent:"space-between",
+                            flexWrap:"wrap", gap:10 }}>
+                            <span style={{ color:"#1e4a58", fontSize:11, letterSpacing:"0.07em" }}>
+                              Showing {Math.min(pagedResults.length, sortedResults.length).toLocaleString()} of {sortedResults.length.toLocaleString()} · Click planet name for details
+                            </span>
+                            {pagedResults.length < sortedResults.length && (
+                              <button onClick={() => setPage(p => p+1)} style={{
+                                padding:"7px 16px",
+                                background:"rgba(0,229,255,0.07)",
+                                border:"1px solid rgba(0,229,255,0.18)",
+                                borderRadius:6, color:"#00e5ff",
+                                fontFamily:"'Orbitron',sans-serif", fontSize:9,
+                                letterSpacing:"0.14em", cursor:"pointer", textTransform:"uppercase",
+                              }}>Load More ↓</button>
+                            )}
                           </div>
                         </div>
+
+                      ) : (
+                        /* ── Card view ── */
+                        <>
+                          <div className="cards-grid" style={{
+                            display:"grid",
+                            gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",
+                            gap:16 }}>
+                            {pagedResults.map((row, i) => (
+                              <PlanetCard key={i} planet={row}
+                                onSelect={setSelectedPlanet}
+                                onFavorite={toggleFavorite}
+                                isFavorite={favorites.has(row.pl_name)} />
+                            ))}
+                          </div>
+                          {pagedResults.length < sortedResults.length && (
+                            <div style={{ textAlign:"center", marginTop:22 }}>
+                              <button onClick={() => setPage(p => p+1)} style={{
+                                padding:"11px 30px",
+                                background:"rgba(0,229,255,0.07)",
+                                border:"1px solid rgba(0,229,255,0.2)",
+                                borderRadius:9, color:"#00e5ff",
+                                fontFamily:"'Orbitron',sans-serif", fontSize:10,
+                                letterSpacing:"0.18em", cursor:"pointer",
+                                textTransform:"uppercase",
+                              }}>Load More ({(sortedResults.length - pagedResults.length).toLocaleString()} remaining)</button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </section>
                   )}
 
                   {/* Idle state */}
-                  {results === null && (
-                    <div style={{ textAlign:"center", padding:"40px 20px", color:"#1e4a5a",
-                      fontSize:12, letterSpacing:"0.15em", fontFamily:"'Orbitron',sans-serif" }}>
-                      {allData.length.toLocaleString()} EXOPLANETS INDEXED · SELECT PARAMETERS ABOVE TO BEGIN QUERY
+                  {results === null && !loading && (
+                    <div style={{ textAlign:"center", padding:"55px 20px",
+                      color:"#182e38", fontSize:11, letterSpacing:"0.18em",
+                      fontFamily:"'Orbitron',sans-serif" }}>
+                      {allData.length.toLocaleString()} EXOPLANETS INDEXED · SEARCH OR SELECT FILTERS ABOVE
                     </div>
                   )}
-
                 </div>
               )}
             </div>
           </div>
-          {/* Planet detail modal */}
+
+          {/* ── Modals & panels ── */}
           {selectedPlanet && (
-            <PlanetModal planet={selectedPlanet} onClose={() => setSelectedPlanet(null)} />
+            <PlanetModal planet={selectedPlanet}
+              onClose={() => setSelectedPlanet(null)}
+              onFavorite={toggleFavorite}
+              isFavorite={favorites.has(selectedPlanet.pl_name)} />
+          )}
+          {showFavorites && (
+            <FavoritesPanel allData={allData} favorites={favorites}
+              onClose={() => setShowFavorites(false)}
+              onSelect={setSelectedPlanet}
+              onFavorite={toggleFavorite} />
           )}
         </>
       );
