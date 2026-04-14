@@ -604,7 +604,7 @@
             </div>
             <button onClick={e => { e.stopPropagation(); onFavorite(planet.pl_name); }}
               className="fav-btn"
-              title={isFavorite ? "Remove favorite" : "Add to favorites"}
+              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               style={{ background:"none", border:"none", cursor:"pointer",
                 fontSize:19, color:isFavorite ? "#ffcc00" : "#243a4a",
                 alignSelf:"flex-start", padding:"0 2px", flexShrink:0 }}
@@ -640,6 +640,8 @@
         if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
         chartRef.current = new Chart(canvasRef.current, { type: chartType, data, options });
         return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+        // options is intentionally excluded: it is a stable literal object defined in the parent
+        // and including it would cause infinite re-renders since it is recreated on every render.
       }, [data, chartType]); // eslint-disable-line react-hooks/exhaustive-deps
 
       return <canvas ref={canvasRef} style={{ maxHeight: height }} />;
@@ -711,7 +713,7 @@
                 boxShadow:"0 0 8px #a855f7", animation:"pulse 2s ease infinite" }} />
               <h2 style={{ fontFamily:"'Orbitron',sans-serif", fontSize:11,
                 letterSpacing:"0.22em", color:"#a855f7", textTransform:"uppercase" }}>
-                Data Visualisation
+                Data Visualization
               </h2>
               <div style={{ flex:1, height:1, background:"linear-gradient(90deg,#a855f740,transparent)" }} />
               <span style={{ fontSize:11, color:"#3a6a7a" }}>
@@ -1042,7 +1044,7 @@
                         color: showCharts ? "#c084fc" : "#4a9ab5",
                       },
                       {
-                        label:`★ Favourites${favorites.size ? ` (${favorites.size})` : ""}`,
+                        label:`★ Favorites${favorites.size ? ` (${favorites.size})` : ""}`,
                         onClick:()=>setShowFavorites(true),
                         bg: favorites.size ? "rgba(255,204,0,0.08)" : "transparent",
                         border: favorites.size ? "#ffcc0044" : "#00e5ff22",
