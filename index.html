@@ -108,6 +108,45 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useCallback, useRef, memo } = React;
 
+    /* ─────────────────── Error Boundary ─────────────────── */
+    class ErrorBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+      static getDerivedStateFromError(error) { return { hasError: true, error }; }
+      componentDidCatch(error, info) {
+        if (typeof console !== "undefined") console.error("ErrorBoundary caught:", error, info);
+      }
+      render() {
+        if (this.state.hasError) {
+          return React.createElement("div", {
+            style: {
+              minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center",
+              justifyContent:"center", background:"#020b18", color:"#c8e6f0", padding:40,
+              textAlign:"center", fontFamily:"'Inter',sans-serif"
+            }
+          },
+            React.createElement("div", { style:{ fontSize:48, marginBottom:20 } }, "🛸"),
+            React.createElement("h1", {
+              style:{ fontFamily:"'Orbitron',sans-serif", fontSize:20, color:"#ff7b7b",
+                letterSpacing:"0.1em", marginBottom:12 }
+            }, "Something went wrong"),
+            React.createElement("p", { style:{ color:"#4a9ab5", fontSize:13, marginBottom:24, maxWidth:400 } },
+              "The application encountered an unexpected error. This is usually temporary."
+            ),
+            React.createElement("button", {
+              onClick: () => { window.location.reload(); },
+              style: {
+                padding:"12px 28px", background:"linear-gradient(135deg,#00b4cc,#007a9a)",
+                border:"1px solid rgba(0,229,255,0.48)", borderRadius:8,
+                color:"#fff", fontFamily:"'Orbitron',sans-serif", fontSize:10,
+                fontWeight:600, letterSpacing:"0.22em", cursor:"pointer", textTransform:"uppercase",
+              }
+            }, "↻ Retry")
+          );
+        }
+        return this.props.children;
+      }
+    }
+
     /* ── Constants ── */
     const NASA_TAP_URL =
       "https://exoplanetarchive.ipac.caltech.edu/TAP/sync" +
@@ -117,7 +156,9 @@
       "+FROM+pscomppars" +
       "&FORMAT=json";
 
-    const CACHE_KEY = "exoplanet_data_v1";
+    const CACHE_KEY = "exoplanet_data_v2";
+    const CACHE_TS_KEY = "exoplanet_data_v2_ts";
+    const CACHE_TTL_MS = 30 * 60 * 1000; /* 30 minutes */
 
     const SAMPLE_DATA = [
       {pl_name:"51 Peg b",      hostname:"51 Peg",     disc_year:1995,discoverymethod:"Radial Velocity",disc_facility:"Haute-Provence Obs"},
@@ -160,7 +201,7 @@
       url => `https://thingproxy.freeboard.io/fetch/${url}`,
     ];
 
-    async function fetchWithTimeout(url, ms = 8000) {
+    async function fetchWithTimeout(url, ms = 15000) {
       const ctrl = new AbortController();
       const id = setTimeout(() => ctrl.abort(), ms);
       try {
@@ -173,18 +214,27 @@
       }
     }
 
+    const MAX_PROXY_RETRIES = 2;
+
     async function fetchWithCORSFallback(url) {
       let lastErr = new Error("All proxies unreachable");
       for (const proxy of CORS_PROXIES) {
-        try {
-          const res = await fetchWithTimeout(proxy(url));
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res;
-        } catch (e) {
-          lastErr = e;
+        for (let attempt = 0; attempt < MAX_PROXY_RETRIES; attempt++) {
+          try {
+            const res = await fetchWithTimeout(proxy(url));
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res;
+          } catch (e) {
+            lastErr = e;
+          }
         }
       }
       throw lastErr;
+    }
+
+    function safeJsonParse(text) {
+      try { return JSON.parse(text); }
+      catch (_) { return null; }
     }
 
     const COLS = [
@@ -811,8 +861,11 @@
       const [allData,        setAllData]        = useState([]);
       const [loading,        setLoading]        = useState(true);
       const [loadProgress,   setLoadProgress]   = useState("Initialising uplink…");
+      const [usingSample,    setUsingSample]    = useState(false);
+      const [isOnline,       setIsOnline]       = useState(navigator.onLine);
       const [filters,        setFilters]        = useState({ disc_year:"", discoverymethod:"", hostname:"", disc_facility:"" });
       const [searchText,     setSearchText]     = useState("");
+      const [debouncedSearch,setDebouncedSearch]= useState("");
       const [results,        setResults]        = useState(null);
       const [queryError,     setQueryError]     = useState("");
       const [sort,           setSort]           = useState({ col:null, dir:null });
@@ -828,8 +881,24 @@
       const [favorites,      setFavorites]      = useState(() => {
         try { return new Set(JSON.parse(localStorage.getItem("exo_favs") || "[]")); } catch(_){ return new Set(); }
       });
+      const [retryCount,     setRetryCount]     = useState(0);
 
       const PAGE_SIZE = 50;
+
+      /* Online/offline detection */
+      useEffect(() => {
+        const goOnline  = () => setIsOnline(true);
+        const goOffline = () => setIsOnline(false);
+        window.addEventListener("online",  goOnline);
+        window.addEventListener("offline", goOffline);
+        return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
+      }, []);
+
+      /* Debounce search text */
+      useEffect(() => {
+        const id = setTimeout(() => setDebouncedSearch(searchText), 300);
+        return () => clearTimeout(id);
+      }, [searchText]);
 
       /* Persist favorites */
       useEffect(() => {
@@ -841,16 +910,19 @@
         try { localStorage.setItem("exo_presets", JSON.stringify(presets)); } catch(_){}
       }, [presets]);
 
-      /* Fetch data (with sessionStorage cache) */
+      /* Fetch data (with sessionStorage cache + expiry) */
       useEffect(() => {
         let cancelled = false;
         async function load() {
-          /* Check sessionStorage cache */
+          /* Check sessionStorage cache with expiry */
           try {
             const cached = sessionStorage.getItem(CACHE_KEY);
-            if (cached) {
-              const rows = JSON.parse(cached);
-              if (rows?.length && !cancelled) { setAllData(rows); setLoading(false); return; }
+            const cachedTs = Number(sessionStorage.getItem(CACHE_TS_KEY) || 0);
+            if (cached && (Date.now() - cachedTs) < CACHE_TTL_MS) {
+              const rows = safeJsonParse(cached);
+              if (Array.isArray(rows) && rows.length && !cancelled) {
+                setAllData(rows); setUsingSample(false); setLoading(false); return;
+              }
             }
           } catch(_){}
 
@@ -858,7 +930,9 @@
             setLoadProgress("Contacting NASA Exoplanet Archive…");
             const res = await fetchWithCORSFallback(NASA_TAP_URL);
             setLoadProgress("Receiving telemetry data…");
-            const json = await res.json();
+            const text = await res.text();
+            const json = safeJsonParse(text);
+            if (!json) throw new Error("Invalid JSON response");
             if (cancelled) return;
             setLoadProgress("Indexing catalogue…");
 
@@ -872,12 +946,17 @@
               rows = Array.isArray(json) ? json : [];
             }
 
-            try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(rows)); } catch(_){}
+            try {
+              sessionStorage.setItem(CACHE_KEY, JSON.stringify(rows));
+              sessionStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+            } catch(_){}
             setAllData(rows);
+            setUsingSample(false);
             setLoading(false);
           } catch (_) {
             if (!cancelled) {
               setAllData(SAMPLE_DATA);
+              setUsingSample(true);
               setLoadProgress("⚠ Live data unavailable — showing sample catalogue");
               setLoading(false);
             }
@@ -885,6 +964,14 @@
         }
         load();
         return () => { cancelled = true; };
+      }, [retryCount]);
+
+      const handleRetryFetch = useCallback(() => {
+        setLoading(true);
+        setLoadProgress("Retrying connection…");
+        setUsingSample(false);
+        try { sessionStorage.removeItem(CACHE_KEY); sessionStorage.removeItem(CACHE_TS_KEY); } catch(_){}
+        setRetryCount(c => c + 1);
       }, []);
 
       /* Build unique option lists */
@@ -921,6 +1008,19 @@
         }));
         setSort({ col:null, dir:null });
       }, [filters, searchText, allData]);
+
+      /* Auto-filter when debounced search text or filters change (only when results are already shown) */
+      useEffect(() => {
+        if (results === null) return;
+        const active = Object.entries(filters).filter(([,v]) => v);
+        if (!active.length && !debouncedSearch.trim()) return;
+        setPage(1);
+        setResults(allData.filter(row => {
+          if (debouncedSearch.trim() &&
+              !String(row.pl_name||"").toLowerCase().includes(debouncedSearch.trim().toLowerCase())) return false;
+          return active.every(([k, v]) => String(row[k]??"") === v);
+        }));
+      }, [debouncedSearch, filters, allData]);
 
       const handleClear = useCallback(() => {
         setFilters({ disc_year:"", discoverymethod:"", hostname:"", disc_facility:"" });
@@ -978,11 +1078,12 @@
         if (!allData.length) return null;
         const methods = new Set(allData.map(r => r.discoverymethod).filter(Boolean));
         const years   = allData.map(r => Number(r.disc_year)).filter(Boolean);
+        const yearRange = years.reduce((acc, y) => ({ min: y < acc.min ? y : acc.min, max: y > acc.max ? y : acc.max }), { min: Infinity, max: -Infinity });
         return {
           total:    allData.length.toLocaleString(),
           methods:  methods.size,
-          earliest: years.length ? Math.min(...years) : "—",
-          latest:   years.length ? Math.max(...years) : "—",
+          earliest: years.length ? yearRange.min : "—",
+          latest:   years.length ? yearRange.max : "—",
         };
       }, [allData]);
 
@@ -1004,6 +1105,39 @@
 
             {/* ── Main content ── */}
             <div style={{ position:"relative", zIndex:2, maxWidth:1160, margin:"0 auto", padding:"0 18px 90px" }}>
+
+              {/* Offline indicator */}
+              {!isOnline && (
+                <div style={{
+                  position:"fixed", top:0, left:0, right:0, zIndex:300,
+                  background:"linear-gradient(90deg,#cc3300,#992200)",
+                  color:"#fff", textAlign:"center", padding:"8px 16px",
+                  fontSize:12, fontFamily:"'Orbitron',sans-serif",
+                  letterSpacing:"0.14em", animation:"fadeIn 0.3s ease",
+                }}>
+                  ⚡ You are offline — cached data may be shown
+                </div>
+              )}
+
+              {/* Sample data retry banner */}
+              {!loading && usingSample && (
+                <div style={{
+                  background:"rgba(255,123,123,0.08)", border:"1px solid rgba(255,123,123,0.25)",
+                  borderRadius:10, padding:"12px 18px", marginBottom:16,
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  flexWrap:"wrap", gap:10, animation:"fadeUp 0.4s ease",
+                }}>
+                  <span style={{ color:"#ff9b9b", fontSize:12, letterSpacing:"0.08em" }}>
+                    ⚠ Live data unavailable — showing {SAMPLE_DATA.length} sample planets.
+                  </span>
+                  <button onClick={handleRetryFetch} className="btn-primary" style={{
+                    padding:"7px 18px", background:"rgba(255,123,123,0.12)",
+                    border:"1px solid rgba(255,123,123,0.35)", borderRadius:7,
+                    color:"#ff9b9b", fontFamily:"'Orbitron',sans-serif", fontSize:9,
+                    letterSpacing:"0.16em", cursor:"pointer", textTransform:"uppercase",
+                  }}>↻ Retry Connection</button>
+                </div>
+              )}
 
               {/* ── Header ── */}
               <header style={{ textAlign:"center", padding:"54px 0 26px", animation:"fadeUp 0.9s ease" }}>
@@ -1483,7 +1617,7 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><App /></ErrorBoundary>);
   </script>
 </body>
 </html>
